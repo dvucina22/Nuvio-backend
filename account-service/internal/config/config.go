@@ -5,14 +5,12 @@ import "os"
 type Config struct {
 	Port        string
 	DatabaseDSN string
-	JWTSecret   string
 }
 
 func Load() *Config {
 	return &Config{
 		Port:        getenv("PORT", "8080"),
-		DatabaseDSN: getenv("DATABASE_DSN", "postgres://user:pass@localhost:5432/accountdb?sslmode=disable"),
-		JWTSecret:   getenv("JWT_SECRET", "change-me"),
+		DatabaseDSN: getenv("DATABASE_DSN", "postgres://postgres:password@localhost:5432/nuvio-local?sslmode=disable"),
 	}
 }
 
