@@ -10,7 +10,7 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Port:        getenv("PORT", "8080"),
-		DatabaseDSN: getenv("DATABASE_DSN", "postgres://postgres:password@localhost:5432/nuvio-local?sslmode=disable"),
+		DatabaseDSN: getenv("DATABASE_DSN", "postgres://postgres:ngL420Idk@localhost:5432/nuvio-local?sslmode=disable"),
 	}
 }
 

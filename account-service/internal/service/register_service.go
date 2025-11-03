@@ -35,10 +35,16 @@ func (s *RegisterService) Register(ctx context.Context, req RegisterRequest) (*m
 		return nil, errors.New("email and password required")
 	}
 
+	if err := validatePassword(req.Password); err != nil {
+		return nil, err
+	}
+
 	existing, err := s.repo.FindByEmail(ctx, req.Email)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if existing != nil {
 		return nil, errors.New("email already exists")
 	}
@@ -76,4 +82,30 @@ func hashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(bytes), nil
+}
+
+func validatePassword(pw string) error {
+	if len(pw) < 8 {
+		return errors.New("password must be at least 8 characters long, contain one uppercase letter and one number")
+	}
+
+	var hasUpper bool
+	var hasDigit bool
+
+	for _, r := range pw {
+		if r >= 'A' && r <= 'Z' {
+			hasUpper = true
+		}
+		if r >= '0' && r <= '9' {
+			hasDigit = true
+		}
+		if hasUpper && hasDigit {
+			break
+		}
+	}
+
+	if !hasUpper || !hasDigit {
+		return errors.New("password must be at least 8 characters long, contain one uppercase letter and one number")
+	}
+	return nil
 }
