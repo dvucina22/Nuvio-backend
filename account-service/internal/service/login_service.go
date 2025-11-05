@@ -6,8 +6,21 @@ import (
 	"time"
 
 	"github.com/account-service/internal/repository"
+	"github.com/account-service/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type LoginService struct {
+	repo       repository.AccountRepository
+	jwtManager *utils.JWTManager
+}
+
+func NewLoginService(r repository.AccountRepository, jwtManager *utils.JWTManager) *LoginService {
+	return &LoginService{
+		repo:       r,
+		jwtManager: jwtManager,
+	}
+}
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -16,14 +29,6 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	Token string `json:"token"`
-}
-
-type LoginService struct {
-	repo repository.AccountRepository
-}
-
-func NewLoginService(r repository.AccountRepository) *LoginService {
-	return &LoginService{repo: r}
 }
 
 func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
@@ -35,14 +40,12 @@ func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginRespo
 	if err != nil {
 		return nil, errors.New("error retrieving user")
 	}
-
 	if user == nil {
-		return nil, errors.New("invalid email")
+		return nil, errors.New("invalid credentials")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-	if err != nil {
-		return nil, errors.New("invalid password")
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		return nil, errors.New("invalid credentials")
 	}
 
 	now := time.Now()
@@ -50,7 +53,10 @@ func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginRespo
 		return nil, err
 	}
 
-	token := "dummy-token-" + user.ID.String()
+	token, err := s.jwtManager.Generate(user.ID, user.Email)
+	if err != nil {
+		return nil, errors.New("failed to generate token")
+	}
 
 	return &LoginResponse{Token: token}, nil
 }
