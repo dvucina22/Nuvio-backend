@@ -3,10 +3,17 @@ package router
 import (
 	"github.com/account-service/internal/api/rest/handler"
 	"github.com/account-service/internal/service"
-	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/mux"
 )
 
-func RegisterRoutes(r *chi.Mux, svc *service.RegisterService) {
-	h := handler.NewRegisterHandler(svc)
-	r.Post("/api/v1/register", h.Register)
+func NewRouter(registerService *service.RegisterService, loginService *service.LoginService) *mux.Router {
+	r := mux.NewRouter()
+
+	registerHandler := handler.NewRegisterHandler(registerService)
+	loginHandler := handler.NewLoginHandler(loginService)
+
+	r.HandleFunc("/api/register", registerHandler.Register).Methods("POST")
+	r.HandleFunc("/api/login", loginHandler.Login).Methods("POST")
+
+	return r
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/account-service/pkg/models"
 	"github.com/google/uuid"
@@ -13,7 +14,7 @@ import (
 type AccountRepository interface {
 	Create(ctx context.Context, u *models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
-	UpdateLastLogin(ctx context.Context, id uuid.UUID, t sql.NullTime) error
+	UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.Time) error
 }
 
 type accountRepo struct {
@@ -88,8 +89,8 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 	return &u, nil
 }
 
-func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t sql.NullTime) error {
-	q := `UPDATE accounts SET last_login_at = $1, updated_at = NOW() WHERE id = $2`
+func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.Time) error {
+	q := `UPDATE users SET last_login_at = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, q, t, id)
 	return err
 }

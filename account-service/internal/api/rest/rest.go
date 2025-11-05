@@ -1,24 +1,28 @@
 package rest
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/account-service/internal/api/rest/router"
 	"github.com/account-service/internal/service"
-	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
-	port string
-	svc  *service.RegisterService
+	port            string
+	registerService *service.RegisterService
+	loginService    *service.LoginService
 }
 
-func NewServer(port string, svc *service.RegisterService) *Server {
-	return &Server{port: port, svc: svc}
+func NewServer(port string, registerService *service.RegisterService, loginService *service.LoginService) *Server {
+	return &Server{
+		port:            port,
+		registerService: registerService,
+		loginService:    loginService,
+	}
 }
 
 func (s *Server) Run() error {
-	r := chi.NewRouter()
-	router.RegisterRoutes(r, s.svc)
-	return http.ListenAndServe(":"+s.port, r)
+	r := router.NewRouter(s.registerService, s.loginService)
+	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }
