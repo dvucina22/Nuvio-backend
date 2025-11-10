@@ -6,6 +6,7 @@ import (
 
 	"github.com/account-service/internal/api/rest"
 	"github.com/account-service/internal/config"
+	postgres "github.com/account-service/internal/db"
 	"github.com/account-service/internal/repository"
 	"github.com/account-service/internal/service"
 	"github.com/account-service/pkg/utils"
@@ -14,7 +15,7 @@ import (
 func Run() {
 	cfg := config.Load()
 
-	db := repository.ConnectPostgres(cfg.DatabaseDSN)
+	db := postgres.ConnectPostgres(cfg.DatabaseDSN)
 
 	accountRepo := repository.NewAccountRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
