@@ -28,7 +28,10 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token     string `json:"token"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Email     string `json:"email,omitempty"`
 }
 
 func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
@@ -58,5 +61,18 @@ func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginRespo
 		return nil, errors.New("failed to generate token")
 	}
 
-	return &LoginResponse{Token: token}, nil
+	var firstName, lastName string
+	if user.FirstName != nil {
+		firstName = *user.FirstName
+	}
+	if user.LastName != nil {
+		lastName = *user.LastName
+	}
+
+	return &LoginResponse{
+		Token:     token,
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     user.Email,
+	}, nil
 }
