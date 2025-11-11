@@ -84,15 +84,15 @@ func hashPassword(password string) (string, error) {
 	return string(bytes), nil
 }
 
-func validatePassword(pw string) error {
-	if len(pw) < 8 {
+func validatePassword(pasword string) error {
+	if len(pasword) < 8 {
 		return errors.New("password must be at least 8 characters long, contain one uppercase letter and one number")
 	}
 
 	var hasUpper bool
 	var hasDigit bool
 
-	for _, r := range pw {
+	for _, r := range pasword {
 		if r >= 'A' && r <= 'Z' {
 			hasUpper = true
 		}

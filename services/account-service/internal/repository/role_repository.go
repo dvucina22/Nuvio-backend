@@ -21,20 +21,14 @@ func NewRoleRepository(db *sql.DB) RoleRepository {
 }
 
 func (r *roleRepo) AddUserRole(ctx context.Context, userID uuid.UUID, roleID int) error {
-	q := `
-		INSERT INTO user_roles_map (user_id, role_id)
-		VALUES ($1, $2)
-	`
+	q := `INSERT INTO user_roles_map (user_id, role_id) VALUES ($1, $2)`
 
 	_, err := r.db.ExecContext(ctx, q, userID, roleID)
 	return err
 }
 
 func (r *roleRepo) RemoveUserRole(ctx context.Context, userID uuid.UUID, roleID int) error {
-	q := `
-		DELETE FROM user_roles_map
-		WHERE user_id = $1 AND role_id = $2
-	`
+	q := `DELETE FROM user_roles_map WHERE user_id = $1 AND role_id = $2`
 
 	_, err := r.db.ExecContext(ctx, q, userID, roleID)
 	return err

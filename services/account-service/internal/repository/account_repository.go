@@ -26,13 +26,11 @@ func NewAccountRepository(db *sql.DB) AccountRepository {
 }
 
 func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
-	q := `
-		INSERT INTO users (
+	q := `INSERT INTO users (
 			email, phone_number, password_hash, first_name, last_name, is_active
 		)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at, updated_at
-	`
+		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRowContext(
 		ctx,
@@ -49,8 +47,7 @@ func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
 func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var u models.User
 
-	q := `
-		SELECT 
+	q := `SELECT 
 			id,
 			email,
 			phone_number,
@@ -63,8 +60,7 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 			last_login_at
 		FROM users
 		WHERE email = $1
-		LIMIT 1
-	`
+		LIMIT 1`
 
 	err := r.db.QueryRowContext(ctx, q, email).Scan(
 		&u.ID,

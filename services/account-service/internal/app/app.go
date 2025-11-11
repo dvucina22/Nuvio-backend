@@ -19,13 +19,17 @@ func Run() {
 
 	accountRepo := repository.NewAccountRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
+	oauthRepo := repository.NewOAuthRepo(db)
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
+	oauth2Configs := cfg.BuildOAuth2Configs()
+
 	registerService := service.NewRegisterService(accountRepo, roleRepo)
 	loginService := service.NewLoginService(accountRepo, jwtManager)
+	oauthService := service.NewOAuthService(accountRepo, oauthRepo, jwtManager, oauth2Configs)
 
-	server := rest.NewServer(cfg.Port, registerService, loginService)
+	server := rest.NewServer(cfg.Port, registerService, loginService, oauthService)
 
 	log.Printf("Account Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())
