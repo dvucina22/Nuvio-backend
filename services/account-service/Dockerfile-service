@@ -1,21 +1,29 @@
-FROM golang:1.22-alpine AS builder
+# -------- Builder Stage --------
+FROM golang:1.25.3-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+# Install git (needed if go modules pull from private repos)
+RUN apk add --no-cache git
 
+# Copy go mod/sum files and download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
+# Copy the entire project
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o service .
+# Build the binary from cmd/server/
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o service ./cmd/server
 
+# -------- Final Stage --------
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
+# Copy binary from builder
 COPY --from=builder /app/service .
 
 EXPOSE 8000
