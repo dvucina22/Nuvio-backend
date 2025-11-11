@@ -17,9 +17,11 @@ func NewRouter(
 	loginHandler := handler.NewLoginHandler(loginService)
 	oauthHandler := handler.NewOAuthHandler(oauthService)
 
-	r.HandleFunc("/api/register", registerHandler.Register).Methods("POST")
-	r.HandleFunc("/api/login", loginHandler.Login).Methods("POST")
+	accountsAPI := r.PathPrefix("/api/accounts").Subrouter()
 
-	r.HandleFunc("/api/oauth/{provider}/verify", oauthHandler.VerifyToken).Methods("POST")
+	accountsAPI.HandleFunc("/register", registerHandler.Register).Methods("POST")
+	accountsAPI.HandleFunc("/login", loginHandler.Login).Methods("POST")
+
+	accountsAPI.HandleFunc("/oauth/{provider}/verify", oauthHandler.VerifyToken).Methods("POST")
 	return r
 }
