@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Account Manager Service
+  account-manager:
+    build:
+      context: ./services/account-manager
+      dockerfile: Dockerfile
+    container_name: nuvio-account-manager
+    environment:
+      SERVICE_PORT: 8001
+    ports:
+      - "8001:8001"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Catalog Manager Service
+  catalog-manager:
+    build:
+      context: ./services/catalog-manager
+      dockerfile: Dockerfile
+    container_name: nuvio-catalog-manager
+    environment:
+      SERVICE_PORT: 8002
+    ports:
+      - "8002:8002"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Transaction Processing Service
+  transaction-processor:
+    build:
+      context: ./services/transaction-processor
+      dockerfile: Dockerfile
+    container_name: nuvio-transaction-processor
+    environment:
+      SERVICE_PORT: 8003
+    ports:
+      - "8003:8003"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Transaction Formatting Service 1
+  transaction-formatter-1:
+    build:
+      context: ./services/transaction-formatter
+      dockerfile: Dockerfile
+    container_name: nuvio-transaction-formatter-1
+    environment:
+      SERVICE_PORT: 8004
+    ports:
+      - "8004:8004"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Transaction Formatting Service 2
+  transaction-formatter-2:
+    build:
+      context: ./services/transaction-formatter
+      dockerfile: Dockerfile
+    container_name: nuvio-transaction-formatter-2
+    environment:
+      SERVICE_PORT: 8005
+    ports:
+      - "8005:8005"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Bank Simulator 1
+  bank-simulator-1:
+    build:
+      context: ./services/bank-simulator
+      dockerfile: Dockerfile
+    container_name: nuvio-bank-simulator-1
+    environment:
+      SERVICE_PORT: 8006
+      BANK_ID: bank-1
+    ports:
+      - "8006:8006"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Bank Simulator 2
+  bank-simulator-2:
+    build:
+      context: ./services/bank-simulator
+      dockerfile: Dockerfile
+    container_name: nuvio-bank-simulator-2
+    environment:
+      SERVICE_PORT: 8007
+      BANK_ID: bank-2
+    ports:
+      - "8007:8007"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nuvio-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt/live/nuvio.lol:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - account-manager
+      - catalog-manager
+      - transaction-processor
+      - transaction-formatter-1
+      - transaction-formatter-2
+      - bank-simulator-1
+      - bank-simulator-2
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+networks:
+  nuvio-network:
+    driver: bridge

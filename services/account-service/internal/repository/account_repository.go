@@ -26,7 +26,7 @@ func NewAccountRepository(db *sql.DB) AccountRepository {
 }
 
 func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
-	q := `INSERT INTO users (
+	q := `INSERT INTO account.users (
 			email, phone_number, password_hash, first_name, last_name, is_active
 		)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -58,7 +58,7 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 			created_at,
 			updated_at,
 			last_login_at
-		FROM users
+		FROM account.users
 		WHERE email = $1
 		LIMIT 1`
 
@@ -86,7 +86,7 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 }
 
 func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.Time) error {
-	q := `UPDATE users SET last_login_at = $1, updated_at = NOW() WHERE id = $2`
+	q := `UPDATE account.users SET last_login_at = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, q, t, id)
 	return err
 }
