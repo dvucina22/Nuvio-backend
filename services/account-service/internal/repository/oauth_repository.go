@@ -25,7 +25,7 @@ func (r *oauthRepo) FindByProviderID(ctx context.Context, provider, providerUser
 	const q = `SELECT u.id, u.email, u.phone_number, u.first_name, 
 	u.last_name, u.is_active, u.created_at, u.updated_at, u.last_login_at
 		FROM account.oauth_accounts oa
-		JOIN users u ON u.id = oa.user_id
+		JOIN account.users u ON u.id = oa.user_id
 		WHERE oa.provider = $1 AND oa.provider_user_id = $2`
 	var u models.User
 	err := r.db.QueryRowContext(ctx, q, provider, providerUserID).Scan(
