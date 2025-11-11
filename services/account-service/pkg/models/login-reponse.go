@@ -1,0 +1,8 @@
+package models
+
+type LoginResponse struct {
+	Token     string `json:"token"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Email     string `json:"email,omitempty"`
+}

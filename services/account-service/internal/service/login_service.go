@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/account-service/internal/repository"
+	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,14 +28,7 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-type LoginResponse struct {
-	Token     string `json:"token"`
-	FirstName string `json:"firstName,omitempty"`
-	LastName  string `json:"lastName,omitempty"`
-	Email     string `json:"email,omitempty"`
-}
-
-func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
+func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*models.LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
 		return nil, errors.New("email and password required")
 	}
@@ -69,7 +63,7 @@ func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*LoginRespo
 		lastName = *user.LastName
 	}
 
-	return &LoginResponse{
+	return &models.LoginResponse{
 		Token:     token,
 		FirstName: firstName,
 		LastName:  lastName,

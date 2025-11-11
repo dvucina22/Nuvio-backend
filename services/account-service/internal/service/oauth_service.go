@@ -36,11 +36,7 @@ func NewOAuthService(a repository.AccountRepository, o repository.OAuthRepositor
 	}
 }
 
-type OAuthLoginResponse struct {
-	Token string `json:"token"`
-}
-
-func (s *OAuthService) VerifyIDToken(ctx context.Context, p types.Provider, idToken string) (*OAuthLoginResponse, error) {
+func (s *OAuthService) VerifyIDToken(ctx context.Context, p types.Provider, idToken string) (*models.LoginResponse, error) {
 	switch p {
 	case types.ProviderGoogle:
 		payload, err := idtoken.Validate(ctx, idToken, s.cfgs.Google.ClientID)
@@ -97,7 +93,20 @@ func (s *OAuthService) VerifyIDToken(ctx context.Context, p types.Provider, idTo
 			return nil, errors.New("failed to generate authentication token")
 		}
 
-		return &OAuthLoginResponse{Token: jwt}, nil
+		var firstName, lastName string
+		if user.FirstName != nil {
+			firstName = *user.FirstName
+		}
+		if user.LastName != nil {
+			lastName = *user.LastName
+		}
+
+		return &models.LoginResponse{
+			Token:     jwt,
+			FirstName: firstName,
+			LastName:  lastName,
+			Email:     user.Email,
+		}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", p)
