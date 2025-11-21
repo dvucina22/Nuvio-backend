@@ -8,6 +8,7 @@ import (
 
 type UserRepository interface {
 	GetUserInfo(userID string) (*models.UserMinimal, error)
+	UpdateUserInfo(userID string, user *models.UpdateUser) error
 }
 
 type userRepo struct {
@@ -29,4 +30,20 @@ func (r *userRepo) GetUserInfo(userID string) (*models.UserMinimal, error) {
 		return nil, err
 	}
 	return &u, nil
+}
+
+func (r *userRepo) UpdateUserInfo(userID string, user *models.UpdateUser) error {
+	const q = `UPDATE account.users SET 
+        first_name = COALESCE($1, first_name), 
+        last_name = COALESCE($2, last_name), 
+        email = COALESCE($3, email), 
+        phone_number = COALESCE($4, phone_number) 
+    WHERE id = $5`
+
+	_, err := r.db.Exec(q, user.FirstName, user.LastName, user.Email, user.PhoneNumber, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

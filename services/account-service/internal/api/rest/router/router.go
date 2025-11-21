@@ -34,5 +34,6 @@ func NewRouter(
 	protected.Use(authMiddleware.RequireAuth)
 
 	protected.HandleFunc("/logged-user", userHandler.GetUserInfo).Methods("GET")
+	protected.HandleFunc("/logged-user", userHandler.UpdateUserInfo).Methods("PUT")
 	return r
 }

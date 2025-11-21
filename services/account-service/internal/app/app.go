@@ -29,7 +29,7 @@ func Run() {
 	registerService := service.NewRegisterService(accountRepo, roleRepo)
 	loginService := service.NewLoginService(accountRepo, jwtManager)
 	oauthService := service.NewOAuthService(accountRepo, oauthRepo, jwtManager, oauth2Configs)
-	userService := service.NewUserService(userRepo)
+	userService := service.NewUserService(userRepo, accountRepo)
 
 	server := rest.NewServer(cfg.Port, registerService, loginService, oauthService, userService, jwtManager)
 
