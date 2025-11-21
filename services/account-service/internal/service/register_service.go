@@ -7,35 +7,29 @@ import (
 
 	"github.com/account-service/internal/repository"
 	"github.com/account-service/pkg/models"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/account-service/pkg/utils"
 )
 
-type RegisterRequest struct {
-	Email       string  `json:"email"`
-	Password    string  `json:"password"`
-	PhoneNumber *string `json:"phoneNumber,omitempty"`
-	FirstName   *string `json:"firstName,omitempty"`
-	LastName    *string `json:"lastName,omitempty"`
-}
-
 type RegisterService struct {
-	repo      repository.AccountRepository
-	role_repo repository.RoleRepository
+	repo            repository.AccountRepository
+	role_repo       repository.RoleRepository
+	password_helper *utils.PasswordHelper
 }
 
-func NewRegisterService(r repository.AccountRepository, rr repository.RoleRepository) *RegisterService {
+func NewRegisterService(r repository.AccountRepository, rr repository.RoleRepository, ph *utils.PasswordHelper) *RegisterService {
 	return &RegisterService{
-		repo:      r,
-		role_repo: rr,
+		repo:            r,
+		role_repo:       rr,
+		password_helper: ph,
 	}
 }
 
-func (s *RegisterService) Register(ctx context.Context, req RegisterRequest) (*models.User, error) {
+func (s *RegisterService) Register(ctx context.Context, req *models.RegisterRequest) (*models.User, error) {
 	if req.Email == "" || req.Password == "" {
 		return nil, errors.New("email and password required")
 	}
 
-	if err := validatePassword(req.Password); err != nil {
+	if err := s.password_helper.ValidatePassword(req.Password); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +43,7 @@ func (s *RegisterService) Register(ctx context.Context, req RegisterRequest) (*m
 		return nil, errors.New("email already exists")
 	}
 
-	hashedPassword, err := hashPassword(req.Password)
+	hashedPassword, err := s.password_helper.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -74,38 +68,4 @@ func (s *RegisterService) Register(ctx context.Context, req RegisterRequest) (*m
 	}
 	user.PasswordHash = ""
 	return user, nil
-}
-
-func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
-func validatePassword(pasword string) error {
-	if len(pasword) < 8 {
-		return errors.New("password must be at least 8 characters long, contain one uppercase letter and one number")
-	}
-
-	var hasUpper bool
-	var hasDigit bool
-
-	for _, r := range pasword {
-		if r >= 'A' && r <= 'Z' {
-			hasUpper = true
-		}
-		if r >= '0' && r <= '9' {
-			hasDigit = true
-		}
-		if hasUpper && hasDigit {
-			break
-		}
-	}
-
-	if !hasUpper || !hasDigit {
-		return errors.New("password must be at least 8 characters long, contain one uppercase letter and one number")
-	}
-	return nil
 }

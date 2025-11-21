@@ -16,10 +16,12 @@ type Server struct {
 	oauthService    *service.OAuthService
 	userService     *service.UserService
 	jwtManager      *utils.JWTManager
+	passwordHelper  *utils.PasswordHelper
 }
 
 func NewServer(port string, registerService *service.RegisterService, loginService *service.LoginService,
-	oauthService *service.OAuthService, userService *service.UserService, jwtManager *utils.JWTManager) *Server {
+	oauthService *service.OAuthService, userService *service.UserService, jwtManager *utils.JWTManager,
+	passwordHelper *utils.PasswordHelper) *Server {
 	return &Server{
 		port:            port,
 		registerService: registerService,
@@ -27,10 +29,11 @@ func NewServer(port string, registerService *service.RegisterService, loginServi
 		oauthService:    oauthService,
 		userService:     userService,
 		jwtManager:      jwtManager,
+		passwordHelper:  passwordHelper,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService, s.jwtManager)
+	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService, s.jwtManager, s.passwordHelper)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

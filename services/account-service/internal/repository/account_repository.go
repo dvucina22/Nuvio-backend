@@ -15,6 +15,7 @@ type AccountRepository interface {
 	Create(ctx context.Context, u *models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.Time) error
+	FindById(ctx context.Context, id string) (*models.User, error)
 }
 
 type accountRepo struct {
@@ -89,4 +90,33 @@ func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.
 	q := `UPDATE account.users SET last_login_at = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, q, t, id)
 	return err
+}
+
+func (r *accountRepo) FindById(ctx context.Context, id string) (*models.User, error) {
+	var u models.User
+	q := `SELECT id, email, phone_number, password_hash, first_name, last_name, is_active, created_at, updated_at, last_login_at
+		FROM account.users
+		WHERE id = $1
+		LIMIT 1`
+
+	err := r.db.QueryRowContext(ctx, q, id).Scan(
+		&u.ID,
+		&u.Email,
+		&u.PhoneNumber,
+		&u.PasswordHash,
+		&u.FirstName,
+		&u.LastName,
+		&u.IsActive,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&u.LastLoginAt,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
 }

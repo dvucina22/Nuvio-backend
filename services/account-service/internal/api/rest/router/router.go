@@ -14,13 +14,14 @@ func NewRouter(
 	oauthService *service.OAuthService,
 	userService *service.UserService,
 	jwtManager *utils.JWTManager,
+	passwordHelper *utils.PasswordHelper,
 ) *mux.Router {
 	r := mux.NewRouter()
 
 	registerHandler := handler.NewRegisterHandler(registerService)
 	loginHandler := handler.NewLoginHandler(loginService)
 	oauthHandler := handler.NewOAuthHandler(oauthService)
-	userHandler := handler.NewUserHandler(userService)
+	userHandler := handler.NewUserHandler(userService, passwordHelper)
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
 	accountsAPI := r.PathPrefix("/api/accounts").Subrouter()
@@ -35,5 +36,6 @@ func NewRouter(
 
 	protected.HandleFunc("/logged-user", userHandler.GetUserInfo).Methods("GET")
 	protected.HandleFunc("/logged-user", userHandler.UpdateUserInfo).Methods("PUT")
+	protected.HandleFunc("/update-password", userHandler.UpdateUserPassword).Methods("POST")
 	return r
 }

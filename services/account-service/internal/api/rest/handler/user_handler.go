@@ -9,14 +9,16 @@ import (
 	"github.com/account-service/internal/service"
 	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/response"
+	"github.com/account-service/pkg/utils"
 )
 
 type UserHandler struct {
-	service *service.UserService
+	service         *service.UserService
+	password_helper *utils.PasswordHelper
 }
 
-func NewUserHandler(s *service.UserService) *UserHandler {
-	return &UserHandler{service: s}
+func NewUserHandler(s *service.UserService, ph *utils.PasswordHelper) *UserHandler {
+	return &UserHandler{service: s, password_helper: ph}
 }
 
 func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
@@ -72,4 +74,27 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "user info updated successfully"})
+}
+
+func (h *UserHandler) UpdateUserPassword(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+
+	if claims == nil {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var req *models.UpdatePassword
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	err := h.service.UpdateUserPassword(r.Context(), claims.UserID, req)
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/account-service/internal/service"
+	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/response"
 )
 
@@ -17,7 +18,7 @@ func NewRegisterHandler(svc *service.RegisterService) *RegisterHandler {
 }
 
 func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req service.RegisterRequest
+	var req *models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		return

@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	GetUserInfo(userID string) (*models.UserMinimal, error)
 	UpdateUserInfo(userID string, user *models.UpdateUser) error
+	UpdateUserPassword(userID, hashedPassword string) error
 }
 
 type userRepo struct {
@@ -41,6 +42,17 @@ func (r *userRepo) UpdateUserInfo(userID string, user *models.UpdateUser) error 
     WHERE id = $5`
 
 	_, err := r.db.Exec(q, user.FirstName, user.LastName, user.Email, user.PhoneNumber, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *userRepo) UpdateUserPassword(userID, hashedPassword string) error {
+	const q = `UPDATE account.users SET password_hash = $1 WHERE id = $2`
+
+	_, err := r.db.Exec(q, hashedPassword, userID)
 	if err != nil {
 		return err
 	}
