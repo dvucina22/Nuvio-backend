@@ -32,7 +32,7 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.GetUserInfo(claims.UserID)
 	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		response.JSON(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -97,4 +97,30 @@ func (h *UserHandler) UpdateUserPassword(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	response.JSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
+}
+
+func (h *UserHandler) UpdateUserProfilePicture(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+
+	if claims == nil {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var req struct {
+		ProfilePictureURL *string `json:"profilePictureUrl"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	err := h.service.UpdateUserProfilePicture(claims.UserID, req.ProfilePictureURL)
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]string{"message": "profile picture updated successfully"})
 }

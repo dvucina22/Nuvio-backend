@@ -37,6 +37,6 @@ func NewRouter(
 	protected.HandleFunc("/logged-user", userHandler.GetUserInfo).Methods("GET")
 	protected.HandleFunc("/logged-user", userHandler.UpdateUserInfo).Methods("PUT")
 	protected.HandleFunc("/update-password", userHandler.UpdateUserPassword).Methods("POST")
-
+	protected.HandleFunc("/update-profile-picture", userHandler.UpdateUserProfilePicture).Methods("POST")
 	return r
 }

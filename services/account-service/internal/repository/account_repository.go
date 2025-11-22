@@ -53,6 +53,8 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 			email,
 			phone_number,
 			password_hash,
+			gender,
+			profile_picture_url,
 			first_name,
 			last_name,
 			is_active,
@@ -68,6 +70,8 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 		&u.Email,
 		&u.PhoneNumber,
 		&u.PasswordHash,
+		&u.Gender,
+		&u.ProfilePictureURL,
 		&u.FirstName,
 		&u.LastName,
 		&u.IsActive,
@@ -94,7 +98,8 @@ func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.
 
 func (r *accountRepo) FindById(ctx context.Context, id string) (*models.User, error) {
 	var u models.User
-	q := `SELECT id, email, phone_number, password_hash, first_name, last_name, is_active, created_at, updated_at, last_login_at
+	q := `SELECT id, email, phone_number, password_hash, first_name, last_name, is_active, created_at, updated_at, last_login_at,
+		gender, profile_picture_url
 		FROM account.users
 		WHERE id = $1
 		LIMIT 1`
@@ -110,6 +115,8 @@ func (r *accountRepo) FindById(ctx context.Context, id string) (*models.User, er
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&u.LastLoginAt,
+		&u.Gender,
+		&u.ProfilePictureURL,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {

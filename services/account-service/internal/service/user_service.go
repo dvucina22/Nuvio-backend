@@ -76,3 +76,7 @@ func (s *UserService) UpdateUserPassword(ctx context.Context, userID string, pas
 
 	return s.user_repo.UpdateUserPassword(userID, hashedPassword)
 }
+
+func (s *UserService) UpdateUserProfilePicture(userID string, profilePictureURL *string) error {
+	return s.user_repo.UpdateUserProfilePicture(userID, profilePictureURL)
+}

@@ -5,4 +5,5 @@ type UpdateUser struct {
 	LastName    *string `json:"lastName,omitempty"`
 	Email       *string `json:"email,omitempty"`
 	PhoneNumber *string `json:"phoneNumber,omitempty"`
+	Gender      *string `json:"gender,omitempty"`
 }

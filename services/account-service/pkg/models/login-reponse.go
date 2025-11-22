@@ -5,4 +5,5 @@ type LoginResponse struct {
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
 	Email     string `json:"email,omitempty"`
+	Gender    string `json:"gender,omitempty"`
 }
