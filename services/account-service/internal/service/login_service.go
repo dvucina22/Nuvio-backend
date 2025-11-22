@@ -23,12 +23,7 @@ func NewLoginService(r repository.AccountRepository, jwtManager *utils.JWTManage
 	}
 }
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-func (s *LoginService) Login(ctx context.Context, req LoginRequest) (*models.LoginResponse, error) {
+func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
 		return nil, errors.New("email and password required")
 	}

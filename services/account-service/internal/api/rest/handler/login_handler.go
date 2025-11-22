@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/account-service/internal/service"
+	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/response"
 )
 
@@ -17,7 +18,7 @@ func NewLoginHandler(s *service.LoginService) *LoginHandler {
 }
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req service.LoginRequest
+	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
