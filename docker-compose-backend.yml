@@ -9,10 +9,25 @@ services:
     environment:
       ACCOUNT_PORT: 8001
     expose:
-      - "8001" # expose internally to nginx
+      - "8001"
     networks:
       - nuvio-network
     restart: unless-stopped
+
+  transaction-manager:
+    build:
+      context: ./services/transaction-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-transaction-manager
+    env_file:
+      - ./services/transaction-service/.env
+    environment:
+      ACCOUNT_PORT: 8001
+    expose:
+      - "8001"
+    networks:
+      - nuvio-network
+    restart: unless-stopped    
 
   nginx:
     image: nginx:alpine
