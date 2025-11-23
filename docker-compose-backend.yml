@@ -14,6 +14,21 @@ services:
       - nuvio-network
     restart: unless-stopped
 
+  catalog-manager:
+    build:
+      context: ./services/catalog-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-catalog-manager
+    env_file:
+      - ./services/catalog-service/.env
+    environment:
+      CATALOG_PORT: 8002
+    expose:
+      - "8002"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
   transaction-manager:
     build:
       context: ./services/transaction-service
@@ -22,12 +37,12 @@ services:
     env_file:
       - ./services/transaction-service/.env
     environment:
-      ACCOUNT_PORT: 8001
+      TRANSACTION_PORT: 8003
     expose:
-      - "8001"
+      - "8003"
     networks:
       - nuvio-network
-    restart: unless-stopped    
+    restart: unless-stopped  
 
   nginx:
     image: nginx:alpine
@@ -41,6 +56,8 @@ services:
       - "443:443"
     depends_on:
       - account-manager
+      - catalog-manager
+      - transaction-manager
     networks:
       - nuvio-network
     restart: unless-stopped
