@@ -12,11 +12,13 @@ func NewRouter(
 	jwtManager *utils.JWTManager,
 	productService *service.ProductService,
 	favoritesService *service.FavoritesService,
+	cartService *service.CartService,
 ) *mux.Router {
 	r := mux.NewRouter()
 
 	productHandler := handler.NewProductHandler(productService)
 	favoritesHanlder := handler.NewFavoritesHandler(favoritesService)
+	cartHandler := handler.NewCartHandler(cartService)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
@@ -31,5 +33,9 @@ func NewRouter(
 
 	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
 	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
+
+	protected.HandleFunc("/products/cart", cartHandler.AddProductToCart).Methods("POST")
+	protected.HandleFunc("/products/cart", cartHandler.RemoveProductFromCart).Methods("DELETE")
+	protected.HandleFunc("/products/cart", cartHandler.GetCartContents).Methods("GET")
 	return r
 }

@@ -59,9 +59,11 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 	}
 
 	return &models.LoginResponse{
-		Token:     token,
-		FirstName: firstName,
-		LastName:  lastName,
-		Email:     user.Email,
+		Token:             token,
+		FirstName:         firstName,
+		LastName:          lastName,
+		Email:             user.Email,
+		Gender:            *user.Gender,
+		ProfilePictureURL: *user.ProfilePictureURL,
 	}, nil
 }
