@@ -22,9 +22,7 @@ func NewUserHandler(s *service.UserService, ph *utils.PasswordHelper) *UserHandl
 }
 
 func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
-
 	claims := middleware.GetUserClaims(r.Context())
-
 	if claims == nil {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
@@ -32,7 +30,7 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.GetUserInfo(claims.UserID)
 	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, err.Error())
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get user info"})
 		return
 	}
 
@@ -46,19 +44,18 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-
 	if claims == nil {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
 
-	var updateUser *models.UpdateUser
-	if err := json.NewDecoder(r.Body).Decode(&updateUser); err != nil {
+	var body models.UpdateUser
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	err := h.service.UpdateUserInfo(r.Context(), claims.UserID, updateUser)
+	err := h.service.UpdateUserInfo(r.Context(), claims.UserID, &body)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrEmailAlreadyExists):
@@ -68,7 +65,7 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
 			return
 		default:
-			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update user info"})
 			return
 		}
 	}
@@ -78,48 +75,67 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) UpdateUserPassword(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-
 	if claims == nil {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
 
-	var req *models.UpdatePassword
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var body models.UpdatePassword
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	err := h.service.UpdateUserPassword(r.Context(), claims.UserID, req)
+	err := h.service.UpdateUserPassword(r.Context(), claims.UserID, &body)
 	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
+		switch {
+		case errors.Is(err, models.ErrMissingFields):
+			response.JSON(w, http.StatusBadRequest, map[string]string{"error": "oldPassword and newPassword required"})
+			return
+		case errors.Is(err, models.ErrUserNotFound):
+			response.JSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+			return
+		case errors.Is(err, models.ErrInvalidPassword):
+			response.JSON(w, http.StatusForbidden, map[string]string{"error": "old password incorrect"})
+			return
+		case errors.Is(err, models.ErrPasswordWeak):
+			response.JSON(w, http.StatusBadRequest, map[string]string{"error": "new password is too weak"})
+			return
+		default:
+			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update password"})
+			return
+		}
 	}
+
 	response.JSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
 }
 
 func (h *UserHandler) UpdateUserProfilePicture(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-
 	if claims == nil {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
 
-	var req struct {
+	var body struct {
 		ProfilePictureURL *string `json:"profilePictureUrl"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	err := h.service.UpdateUserProfilePicture(claims.UserID, req.ProfilePictureURL)
+	err := h.service.UpdateUserProfilePicture(claims.UserID, body.ProfilePictureURL)
 	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
-		return
+		switch {
+		case errors.Is(err, models.ErrUserNotFound):
+			response.JSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+			return
+		default:
+			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update profile picture"})
+			return
+		}
 	}
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "profile picture updated successfully"})
