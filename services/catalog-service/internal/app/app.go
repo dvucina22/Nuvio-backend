@@ -18,12 +18,14 @@ func Run() {
 	db := postgres.ConnectPostgres(cfg.DatabaseDSN)
 
 	productRepo := repository.NewProductRepository(db)
+	favoritesRepo := repository.NewFavoritesRepository(db)
 
 	productService := service.NewProductService(productRepo)
+	favoritesService := service.NewFavoritesService(favoritesRepo, productRepo)
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
-	server := rest.NewServer(cfg.Port, jwtManager, productService)
+	server := rest.NewServer(cfg.Port, jwtManager, productService, favoritesService)
 
 	log.Printf("Catalog Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())

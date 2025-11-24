@@ -35,7 +35,7 @@ func Load() *Config {
 		Port:          getEnv("TRANSACTION_PORT", ""),
 		DatabaseDSN:   getEnv("DATABASE_DSN", ""),
 		JWTSecret:     getEnv("JWT_SECRET", ""),
-		JWTExpiry:     60,
+		JWTExpiry:     604800,
 		EncryptionKey: loadEncryptionKey(),
 	}
 

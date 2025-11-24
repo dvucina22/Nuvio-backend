@@ -19,4 +19,7 @@ type ProductFilter struct {
 	Sort   string `json:"sort,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 	Offset int    `json:"offset,omitempty"`
+
+	IsFavorite       *bool   `json:"isFavorite,omitempty"`
+	IsFavoriteUserID *string `json:"-"`
 }

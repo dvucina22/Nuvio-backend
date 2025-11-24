@@ -39,13 +39,12 @@ func (r *userRepo) UpdateUserInfo(userID string, user *models.UpdateUser) error 
 	const q = `UPDATE account.users SET 
         first_name = COALESCE($1, first_name), 
         last_name = COALESCE($2, last_name), 
-        email = COALESCE($3, email), 
-        phone_number = COALESCE($4, phone_number) ,
-		gender = COALESCE($5, gender),
+        phone_number = COALESCE($3, phone_number) ,
+		gender = COALESCE($4, gen der),
 		updated_at = NOW()
-    WHERE id = $6`
+    WHERE id = $5`
 
-	_, err := r.db.Exec(q, user.FirstName, user.LastName, user.Email, user.PhoneNumber, user.Gender, userID)
+	_, err := r.db.Exec(q, user.FirstName, user.LastName, user.PhoneNumber, user.Gender, userID)
 	if err != nil {
 		return err
 	}

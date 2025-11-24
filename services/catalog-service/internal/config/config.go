@@ -33,7 +33,7 @@ func Load() *Config {
 		Port:        getEnv("CATALOG_PORT", ""),
 		DatabaseDSN: getEnv("DATABASE_DSN", ""),
 		JWTSecret:   getEnv("JWT_SECRET", ""),
-		JWTExpiry:   60,
+		JWTExpiry:   604800,
 	}
 
 	if cfg.Port == "" {

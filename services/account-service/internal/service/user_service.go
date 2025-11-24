@@ -31,18 +31,6 @@ func (s *UserService) UpdateUserInfo(ctx context.Context, userID string, user *m
 		return nil
 	}
 
-	if user.Email != nil {
-		existing, err := s.account_repo.FindByEmail(ctx, *user.Email)
-
-		if err != nil {
-			return err
-		}
-
-		if existing != nil && existing.ID.String() != userID {
-			return models.ErrEmailAlreadyExists
-		}
-	}
-
 	return s.user_repo.UpdateUserInfo(userID, user)
 }
 

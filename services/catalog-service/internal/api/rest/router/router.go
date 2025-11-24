@@ -11,11 +11,12 @@ import (
 func NewRouter(
 	jwtManager *utils.JWTManager,
 	productService *service.ProductService,
-
+	favoritesService *service.FavoritesService,
 ) *mux.Router {
 	r := mux.NewRouter()
 
 	productHandler := handler.NewProductHandler(productService)
+	favoritesHanlder := handler.NewFavoritesHandler(favoritesService)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
@@ -24,6 +25,9 @@ func NewRouter(
 	protected := catalogAPI.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
 
-	catalogAPI.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
+	protected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
+
+	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
+	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
 	return r
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/catalog-service/internal/api/rest/middleware"
 	"github.com/catalog-service/internal/service"
 	"github.com/catalog-service/pkg/models"
 	"github.com/catalog-service/pkg/response"
@@ -26,6 +27,16 @@ func (h *ProductHandler) GetFilteredProducts(w http.ResponseWriter, r *http.Requ
 			"error": "invalid request body",
 		})
 		return
+	}
+
+	if filter.IsFavorite != nil && *filter.IsFavorite {
+		claims := middleware.GetUserClaims(r.Context())
+		if claims == nil {
+			response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+
+		filter.IsFavoriteUserID = &claims.UserID
 	}
 
 	products, err := h.service.GetFilteredProducts(r.Context(), &filter)

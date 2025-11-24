@@ -38,7 +38,7 @@ func Load() *Config {
 		Port:        getEnv("ACCOUNT_PORT", ""),
 		DatabaseDSN: getEnv("DATABASE_DSN", ""),
 		JWTSecret:   getEnv("JWT_SECRET", ""),
-		JWTExpiry:   60,
+		JWTExpiry:   604800,
 		OAuth: OAuthConfig{
 			Google: OAuthProviderConfig{
 				ClientID:     getEnv("OAUTH_GOOGLE_CLIENT_ID", ""),

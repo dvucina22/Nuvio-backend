@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 type ProductRepository interface {
 	GetFilteredProducts(filter *models.ProductFilter) ([]models.Product, error)
+	ExistsByID(ctx context.Context, productID int) (bool, error)
 }
 
 type productRepo struct {
@@ -38,6 +40,19 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 	var where []string
 	var args []any
 	arg := 1
+
+	if filter.IsFavorite != nil && *filter.IsFavorite {
+		if filter.IsFavoriteUserID == nil {
+			return nil, fmt.Errorf("favorite filter requires IsFavoriteUserID")
+		}
+
+		query += `
+			INNER JOIN catalog.user_favorites uf 
+				ON uf.product_id = p.id AND uf.user_id = $` + fmt.Sprint(arg)
+
+		args = append(args, *filter.IsFavoriteUserID)
+		arg++
+	}
 
 	if filter.Search != nil && *filter.Search != "" {
 		where = append(where,
@@ -209,4 +224,21 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 	}
 
 	return result, nil
+}
+
+func (r *productRepo) ExistsByID(ctx context.Context, productID int) (bool, error) {
+	const q = `SELECT 1 FROM catalog.products WHERE id = $1`
+
+	var exists int
+	err := r.db.QueryRowContext(ctx, q, productID).Scan(&exists)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
