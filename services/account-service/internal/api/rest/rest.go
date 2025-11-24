@@ -10,30 +10,32 @@ import (
 )
 
 type Server struct {
-	port            string
-	registerService *service.RegisterService
-	loginService    *service.LoginService
-	oauthService    *service.OAuthService
-	userService     *service.UserService
-	jwtManager      *utils.JWTManager
-	passwordHelper  *utils.PasswordHelper
+	port              string
+	registerService   *service.RegisterService
+	loginService      *service.LoginService
+	oauthService      *service.OAuthService
+	userService       *service.UserService
+	jwtManager        *utils.JWTManager
+	passwordHelper    *utils.PasswordHelper
+	cloudinaryService *service.CloudinaryService
 }
 
 func NewServer(port string, registerService *service.RegisterService, loginService *service.LoginService,
 	oauthService *service.OAuthService, userService *service.UserService, jwtManager *utils.JWTManager,
-	passwordHelper *utils.PasswordHelper) *Server {
+	passwordHelper *utils.PasswordHelper, cloudinaryService *service.CloudinaryService) *Server {
 	return &Server{
-		port:            port,
-		registerService: registerService,
-		loginService:    loginService,
-		oauthService:    oauthService,
-		userService:     userService,
-		jwtManager:      jwtManager,
-		passwordHelper:  passwordHelper,
+		port:              port,
+		registerService:   registerService,
+		loginService:      loginService,
+		oauthService:      oauthService,
+		userService:       userService,
+		jwtManager:        jwtManager,
+		passwordHelper:    passwordHelper,
+		cloudinaryService: cloudinaryService,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService, s.jwtManager, s.passwordHelper)
+	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService, s.jwtManager, s.passwordHelper, s.cloudinaryService)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

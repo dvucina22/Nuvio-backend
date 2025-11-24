@@ -31,8 +31,13 @@ func Run() {
 	loginService := service.NewLoginService(accountRepo, jwtManager)
 	oauthService := service.NewOAuthService(accountRepo, oauthRepo, jwtManager, oauth2Configs)
 	userService := service.NewUserService(userRepo, accountRepo, passwordHelper)
+	cloudinaryService, err := service.NewCloudinaryService()
 
-	server := rest.NewServer(cfg.Port, registerService, loginService, oauthService, userService, jwtManager, passwordHelper)
+	if err != nil {
+		log.Fatalf("Failed to initialize Cloudinary service: %v", err)
+	}
+
+	server := rest.NewServer(cfg.Port, registerService, loginService, oauthService, userService, jwtManager, passwordHelper, cloudinaryService)
 
 	log.Printf("Account Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())

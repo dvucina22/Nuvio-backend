@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/account-service/internal/api/rest/middleware"
@@ -13,12 +14,17 @@ import (
 )
 
 type UserHandler struct {
-	service         *service.UserService
-	password_helper *utils.PasswordHelper
+	service           *service.UserService
+	password_helper   *utils.PasswordHelper
+	cloudinaryService *service.CloudinaryService
 }
 
-func NewUserHandler(s *service.UserService, ph *utils.PasswordHelper) *UserHandler {
-	return &UserHandler{service: s, password_helper: ph}
+func NewUserHandler(s *service.UserService, ph *utils.PasswordHelper, cs *service.CloudinaryService) *UserHandler {
+	return &UserHandler{
+		service:           s,
+		password_helper:   ph,
+		cloudinaryService: cs,
+	}
 }
 
 func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
@@ -110,33 +116,49 @@ func (h *UserHandler) UpdateUserPassword(w http.ResponseWriter, r *http.Request)
 	response.JSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
 }
 
-func (h *UserHandler) UpdateUserProfilePicture(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) GetUploadSignature(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 	if claims == nil {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
 
-	var body struct {
-		ProfilePictureURL *string `json:"profilePictureUrl"`
-	}
+	publicID := fmt.Sprintf("user_%s", claims.UserID)
 
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	signature, err := h.cloudinaryService.GenerateUploadSignature(publicID)
+	if err != nil {
+		http.Error(w, "Failed to generate signature", http.StatusInternalServerError)
 		return
 	}
 
-	err := h.service.UpdateUserProfilePicture(claims.UserID, body.ProfilePictureURL)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrUserNotFound):
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
-			return
-		default:
-			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update profile picture"})
-			return
-		}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(signature)
+}
+
+func (h *UserHandler) UpdateProfilePicture(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	if claims == nil {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"message": "profile picture updated successfully"})
+	var req struct {
+		ProfilePictureURL string `json:"profilePictureUrl"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.UpdateUserProfilePicture(claims.UserID, &req.ProfilePictureURL)
+	if err != nil {
+		http.Error(w, "Failed to update profile picture", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Profile picture updated successfully",
+	})
 }
