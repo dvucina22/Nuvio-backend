@@ -24,8 +24,10 @@ func NewRouter(
 
 	protected := catalogAPI.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
+	optionalProtected := catalogAPI.PathPrefix("").Subrouter()
+	optionalProtected.Use(authMiddleware.OptionalAuth)
 
-	protected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
+	optionalProtected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
 
 	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
 	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
