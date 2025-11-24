@@ -18,9 +18,9 @@ func NewRouter(
 
 	cardHandler := handler.NewCardHandler(cardService)
 
-	accountsAPI := r.PathPrefix("/api/transactions").Subrouter()
+	transactionsAPI := r.PathPrefix("/api/transactions").Subrouter()
 
-	protected := accountsAPI.PathPrefix("").Subrouter()
+	protected := transactionsAPI.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
 
 	protected.HandleFunc("/cards", cardHandler.GetCards).Methods("GET")
