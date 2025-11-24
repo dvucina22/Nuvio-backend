@@ -19,13 +19,15 @@ func Run() {
 
 	productRepo := repository.NewProductRepository(db)
 	favoritesRepo := repository.NewFavoritesRepository(db)
+	cartRepo := repository.NewCartRepository(db)
 
 	productService := service.NewProductService(productRepo)
 	favoritesService := service.NewFavoritesService(favoritesRepo, productRepo)
+	cartService := service.NewCartService(cartRepo, productRepo)
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
-	server := rest.NewServer(cfg.Port, jwtManager, productService, favoritesService)
+	server := rest.NewServer(cfg.Port, jwtManager, productService, favoritesService, cartService)
 
 	log.Printf("Catalog Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())

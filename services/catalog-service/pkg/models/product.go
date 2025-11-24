@@ -15,8 +15,6 @@ type Product struct {
 	Images     []ProductImage     `json:"images"`
 	Attributes []ProductAttribute `json:"attributes"`
 
-	Variants []ProductVariant `json:"variants"`
-
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
 }

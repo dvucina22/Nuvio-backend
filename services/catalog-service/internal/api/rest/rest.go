@@ -14,18 +14,21 @@ type Server struct {
 	jwtManager       *utils.JWTManager
 	productService   *service.ProductService
 	favoritesService *service.FavoritesService
+	cartService      *service.CartService
 }
 
-func NewServer(port string, jwtManager *utils.JWTManager, productService *service.ProductService, favoritesService *service.FavoritesService) *Server {
+func NewServer(port string, jwtManager *utils.JWTManager, productService *service.ProductService, favoritesService *service.FavoritesService,
+	cartService *service.CartService) *Server {
 	return &Server{
 		port:             port,
 		jwtManager:       jwtManager,
 		productService:   productService,
 		favoritesService: favoritesService,
+		cartService:      cartService,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService)
+	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService, s.cartService)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }
