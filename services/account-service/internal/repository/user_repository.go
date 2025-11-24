@@ -22,10 +22,10 @@ func NewUserRepo(db *sql.DB) UserRepository {
 }
 
 func (r *userRepo) GetUserInfo(userID string) (*models.UserMinimal, error) {
-	const q = `SELECT id, first_name, last_name, email, profile_picture_url, gender
+	const q = `SELECT id, first_name, last_name, email, profile_picture_url, gender, phone_number
 	 FROM account.users WHERE id = $1`
 	var u models.UserMinimal
-	err := r.db.QueryRow(q, userID).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.ProfilePictureURL, &u.Gender)
+	err := r.db.QueryRow(q, userID).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.ProfilePictureURL, &u.Gender, &u.PhoneNumber)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

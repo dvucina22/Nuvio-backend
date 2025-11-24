@@ -13,8 +13,6 @@ type ProductFilter struct {
 
 	Attributes []AttributeFilter `json:"attributes,omitempty"`
 
-	VariantAttributes []AttributeFilter `json:"variantAttributes,omitempty"`
-
 	PriceMin *float64 `json:"priceMin,omitempty"`
 	PriceMax *float64 `json:"priceMax,omitempty"`
 

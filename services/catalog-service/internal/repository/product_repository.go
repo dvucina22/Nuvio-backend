@@ -80,37 +80,11 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 					AND a.name = $%d
 					AND a.value IN (SELECT unnest($%d::varchar[]))
 				)`, arg, arg+1)
+
 			where = append(where, subQuery)
 			args = append(args, attr.Name, pq.Array(attr.Values))
 			arg += 2
 		}
-	}
-
-	if len(filter.VariantAttributes) > 0 {
-		variantConditions := make([]string, 0, len(filter.VariantAttributes))
-		for _, va := range filter.VariantAttributes {
-			variantConditions = append(variantConditions,
-				fmt.Sprintf(`
-					EXISTS (
-						SELECT 1 
-						FROM catalog.product_variant_attributes pva
-						JOIN catalog.attributes a ON a.id = pva.attribute_id
-						WHERE pva.variant_id = pv.id
-						AND a.name = $%d
-						AND a.value = ANY($%d)
-					)`, arg, arg+1))
-			args = append(args, va.Name, pq.Array(va.Values))
-			arg += 2
-		}
-
-		subQuery := fmt.Sprintf(`
-			EXISTS (
-				SELECT 1
-				FROM catalog.product_variants pv
-				WHERE pv.product_id = p.id
-				AND %s
-			)`, strings.Join(variantConditions, " AND "))
-		where = append(where, subQuery)
 	}
 
 	if len(where) > 0 {
@@ -173,40 +147,8 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 		productIDs = append(productIDs, id)
 	}
 
-	variantQuery := `
-		SELECT 
-			v.id, v.product_id, v.variant_name, v.sku, v.price, v.is_active,
-			COALESCE(i.quantity, 0)
-		FROM catalog.product_variants v
-		LEFT JOIN catalog.inventory i ON i.variant_id = v.id
-		WHERE v.product_id = ANY($1)
-	`
-
-	varRows, err := r.db.Query(variantQuery, pq.Array(productIDs))
-	if err != nil {
-		return nil, err
-	}
-	defer varRows.Close()
-
-	for varRows.Next() {
-		var v models.ProductVariant
-		var productID int64
-		var inv models.Inventory
-
-		err := varRows.Scan(
-			&v.ID, &productID, &v.Name, &v.SKU, &v.Price, &v.IsActive,
-			&inv.Quantity,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		v.Inventory = inv
-		products[productID].Variants = append(products[productID].Variants, v)
-	}
-
 	imageQuery := `
-		SELECT id, product_id, variant_id, url, is_primary
+		SELECT id, product_id, url, is_primary
 		FROM catalog.product_images
 		WHERE product_id = ANY($1)
 	`
@@ -222,25 +164,13 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 		var productID int64
 
 		err := imgRows.Scan(
-			&img.ID, &productID, &img.VariantID, &img.URL, &img.IsPrimary,
+			&img.ID, &productID, &img.URL, &img.IsPrimary,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		p := products[productID]
-
-		if img.VariantID == nil {
-			p.Images = append(p.Images, img)
-			continue
-		}
-
-		for i := range p.Variants {
-			if p.Variants[i].ID == *img.VariantID {
-				p.Variants[i].Images = append(p.Variants[i].Images, img)
-				break
-			}
-		}
+		products[productID].Images = append(products[productID].Images, img)
 	}
 
 	attrQuery := `

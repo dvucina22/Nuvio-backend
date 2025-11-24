@@ -9,4 +9,5 @@ type UserMinimal struct {
 	Email             string    `json:"email,omitempty"`
 	Gender            *string   `json:"gender,omitempty"`
 	ProfilePictureURL *string   `json:"profilePictureUrl,omitempty"`
+	PhoneNumber       *string   `json:"phoneNumber,omitempty"`
 }
