@@ -1,8 +1,8 @@
 package models
 
 type AttributeFilter struct {
-	AttributeID int64   `json:"attributeId"`
-	ValueIDs    []int64 `json:"valueIds"`
+	Name   string   `json:"name"`
+	Values []string `json:"values"`
 }
 
 type ProductFilter struct {
@@ -11,9 +11,9 @@ type ProductFilter struct {
 	CategoryIDs []int64 `json:"categoryIds,omitempty"`
 	IsActive    *bool   `json:"isActive,omitempty"`
 
-	AttributeFilters []AttributeFilter `json:"attributeFilters,omitempty"`
+	Attributes []AttributeFilter `json:"attributes,omitempty"`
 
-	VariantAttributeFilters []AttributeFilter `json:"variantAttributeFilters,omitempty"`
+	VariantAttributes []AttributeFilter `json:"variantAttributes,omitempty"`
 
 	PriceMin *float64 `json:"priceMin,omitempty"`
 	PriceMax *float64 `json:"priceMax,omitempty"`

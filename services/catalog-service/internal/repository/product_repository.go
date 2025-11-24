@@ -45,10 +45,10 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 				p.name ILIKE '%%' || $%d || '%%' OR 
 				p.model_number ILIKE '%%' || $%d || '%%' OR 
 				p.sku ILIKE '%%' || $%d || '%%'
-			)`, arg, arg, arg),
+			)`, arg, arg+1, arg+2),
 		)
-		args = append(args, *filter.Search)
-		arg++
+		args = append(args, *filter.Search, *filter.Search, *filter.Search)
+		arg += 3
 	}
 
 	if len(filter.BrandIDs) > 0 {
@@ -69,35 +69,37 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 		arg++
 	}
 
-	if len(filter.AttributeFilters) > 0 {
-		for _, attrFilter := range filter.AttributeFilters {
+	if len(filter.Attributes) > 0 {
+		for _, attr := range filter.Attributes {
 			subQuery := fmt.Sprintf(`
 				EXISTS (
 					SELECT 1 
-					FROM catalog.product_attribute_values pav
-					WHERE pav.product_id = p.id
-					AND pav.attribute_id = $%d
-					AND pav.value_id = ANY($%d)
+					FROM catalog.product_attributes pa
+					JOIN catalog.attributes a ON a.id = pa.attribute_id
+					WHERE pa.product_id = p.id
+					AND a.name = $%d
+					AND a.value IN (SELECT unnest($%d::varchar[]))
 				)`, arg, arg+1)
 			where = append(where, subQuery)
-			args = append(args, attrFilter.AttributeID, pq.Array(attrFilter.ValueIDs))
+			args = append(args, attr.Name, pq.Array(attr.Values))
 			arg += 2
 		}
 	}
 
-	if len(filter.VariantAttributeFilters) > 0 {
-		variantConditions := make([]string, 0, len(filter.VariantAttributeFilters))
-		for _, vaf := range filter.VariantAttributeFilters {
+	if len(filter.VariantAttributes) > 0 {
+		variantConditions := make([]string, 0, len(filter.VariantAttributes))
+		for _, va := range filter.VariantAttributes {
 			variantConditions = append(variantConditions,
 				fmt.Sprintf(`
 					EXISTS (
 						SELECT 1 
-						FROM catalog.product_variant_attribute_values pvav
-						WHERE pvav.variant_id = pv.id
-						AND pvav.attribute_id = $%d
-						AND pvav.value_id = ANY($%d)
+						FROM catalog.product_variant_attributes pva
+						JOIN catalog.attributes a ON a.id = pva.attribute_id
+						WHERE pva.variant_id = pv.id
+						AND a.name = $%d
+						AND a.value = ANY($%d)
 					)`, arg, arg+1))
-			args = append(args, vaf.AttributeID, pq.Array(vaf.ValueIDs))
+			args = append(args, va.Name, pq.Array(va.Values))
 			arg += 2
 		}
 
@@ -242,11 +244,10 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 	}
 
 	attrQuery := `
-		SELECT pav.product_id, pav.attribute_id, pav.value_id, a.name, v.value
-		FROM catalog.product_attribute_values pav
-		JOIN catalog.attribute_names a ON a.id = pav.attribute_id
-		JOIN catalog.attribute_values v ON v.id = pav.value_id
-		WHERE pav.product_id = ANY($1)
+		SELECT pa.product_id, a.id, a.name, a.value
+		FROM catalog.product_attributes pa
+		JOIN catalog.attributes a ON a.id = pa.attribute_id
+		WHERE pa.product_id = ANY($1)
 	`
 
 	attrRows, err := r.db.Query(attrQuery, pq.Array(productIDs))
@@ -261,8 +262,7 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 
 		err := attrRows.Scan(
 			&productID,
-			&pa.AttributeID,
-			&pa.ValueID,
+			&pa.ID,
 			&pa.Name,
 			&pa.Value,
 		)

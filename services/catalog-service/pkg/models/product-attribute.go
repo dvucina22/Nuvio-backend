@@ -1,8 +1,7 @@
 package models
 
 type ProductAttribute struct {
-	AttributeID int64  `json:"attributeId"`
-	Name        string `json:"name"`
-	ValueID     int64  `json:"valueId"`
-	Value       string `json:"value"`
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
