@@ -12,6 +12,7 @@ type CartRepository interface {
 	GetCartContents(userID string) (map[int]int, error)
 	CartExists(userID string) (bool, error)
 	GetCartProducts(userID string) ([]cart.CartProduct, error)
+	EmptyCart(userID string) error
 }
 
 type cartRepository struct {
@@ -177,4 +178,13 @@ func (r *cartRepository) loadPrimaryImage(productID int64) (string, error) {
 	}
 
 	return url, err
+}
+
+func (r *cartRepository) EmptyCart(userID string) error {
+	query := `
+		DELETE FROM catalog.cart_items 
+		WHERE cart_id = (SELECT id FROM catalog.carts WHERE user_id = $1)
+	`
+	_, err := r.db.Exec(query, userID)
+	return err
 }

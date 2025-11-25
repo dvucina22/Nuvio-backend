@@ -90,3 +90,24 @@ func (h *CartHandler) GetCartContents(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusOK, items)
 }
+
+func (h *CartHandler) EmptyCart(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	if claims == nil {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	err := h.service.EmptyCart(r.Context(), claims.UserID)
+	if err == models.ErrCartNotFound {
+		response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]string{"message": "cart emptied"})
+}

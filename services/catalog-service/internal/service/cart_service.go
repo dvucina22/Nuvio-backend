@@ -79,3 +79,22 @@ func (s *CartService) GetCartContents(ctx context.Context, userID string) ([]car
 
 	return s.repo.GetCartProducts(userID)
 }
+
+func (s *CartService) EmptyCart(ctx context.Context, userID string) error {
+	cartExists, err := s.repo.CartExists(userID)
+
+	if err != nil {
+		return err
+	}
+
+	if !cartExists {
+		return models.ErrCartNotFound
+	}
+
+	err = s.repo.EmptyCart(userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

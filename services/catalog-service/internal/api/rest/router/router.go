@@ -37,5 +37,6 @@ func NewRouter(
 	protected.HandleFunc("/products/cart", cartHandler.AddProductToCart).Methods("POST")
 	protected.HandleFunc("/products/cart", cartHandler.RemoveProductFromCart).Methods("DELETE")
 	protected.HandleFunc("/products/cart", cartHandler.GetCartContents).Methods("GET")
+	protected.HandleFunc("/products/cart/empty", cartHandler.EmptyCart).Methods("DELETE")
 	return r
 }
