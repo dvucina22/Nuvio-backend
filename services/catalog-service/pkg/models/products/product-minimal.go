@@ -18,4 +18,6 @@ type ProductMinimal struct {
 
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
+
+	Quantity int64 `json:"quantity,omitempty"`
 }

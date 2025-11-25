@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -32,11 +33,8 @@ func (h *CardHandler) AddCard(w http.ResponseWriter, r *http.Request) {
 
 	card, err := h.svc.AddCard(r.Context(), userID, &req)
 	if err != nil {
-		if err == models.ErrMissingFields || err == models.ErrInvalidCard {
-			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -49,7 +47,8 @@ func (h *CardHandler) GetCards(w http.ResponseWriter, r *http.Request) {
 
 	cards, err := h.svc.GetCards(r.Context(), userID)
 	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -74,15 +73,8 @@ func (h *CardHandler) GetCard(w http.ResponseWriter, r *http.Request) {
 
 	card, err := h.svc.GetCard(r.Context(), userID, cardID)
 	if err != nil {
-		if err == models.ErrCardNotFound {
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-			return
-		}
-		if err == models.ErrInvalidCard {
-			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -101,11 +93,8 @@ func (h *CardHandler) SetPrimaryCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.SetPrimaryCard(r.Context(), userID, cardID); err != nil {
-		if err == models.ErrCardNotFound {
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-			return
-		}
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -124,17 +113,31 @@ func (h *CardHandler) DeleteCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.DeleteCard(r.Context(), userID, cardID); err != nil {
-		if err == models.ErrCardNotFound {
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-			return
-		}
-		if err == models.ErrInvalidCard {
-			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "card deleted successfully"})
+}
+
+func (h *CardHandler) getStatusCode(err error) int {
+	switch {
+	case errors.Is(err, models.ErrCardNotFound):
+		return http.StatusNotFound
+
+	case errors.Is(err, models.ErrInvalidCard),
+		errors.Is(err, models.ErrInvalidCardNumber),
+		errors.Is(err, models.ErrCardExpired),
+		errors.Is(err, models.ErrMissingFields),
+		errors.Is(err, models.ErrInvalidUserId):
+		return http.StatusBadRequest
+
+	case errors.Is(err, models.ErrEncryptionFailed),
+		errors.Is(err, models.ErrDatabaseOperation):
+		return http.StatusInternalServerError
+
+	default:
+		return http.StatusInternalServerError
+	}
 }

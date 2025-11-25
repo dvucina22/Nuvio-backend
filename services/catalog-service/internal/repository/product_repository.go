@@ -28,7 +28,7 @@ func (r *productRepo) GetFilteredProducts(filter *products.ProductFilter) ([]pro
 	query := `
 		SELECT 
 			p.id, p.name, p.description, p.model_number, p.sku, p.base_price, p.is_active,
-			p.created_at, p.updated_at,
+			p.created_at, p.updated_at, p.quantity,
 
 			b.id, b.name,
 			c.id, c.name, c.parent_id
@@ -82,6 +82,14 @@ func (r *productRepo) GetFilteredProducts(filter *products.ProductFilter) ([]pro
 		where = append(where, fmt.Sprintf("p.is_active = $%d", arg))
 		args = append(args, *filter.IsActive)
 		arg++
+	}
+
+	if filter.IsInStock != nil {
+		if *filter.IsInStock {
+			where = append(where, "p.quantity > 0")
+		} else {
+			where = append(where, "p.quantity = 0")
+		}
 	}
 
 	if len(filter.Attributes) > 0 {
@@ -139,7 +147,7 @@ func (r *productRepo) GetFilteredProducts(filter *products.ProductFilter) ([]pro
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.ModelNumber, &p.SKU, &p.BasePrice, &p.IsActive,
-			&p.CreatedAt, &p.UpdatedAt,
+			&p.CreatedAt, &p.UpdatedAt, &p.Quantity,
 			&brand.ID, &brand.Name,
 			&category.ID, &category.Name, &category.ParentID,
 		)
