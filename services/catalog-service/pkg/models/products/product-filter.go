@@ -1,4 +1,4 @@
-package models
+package products
 
 type AttributeFilter struct {
 	Name   string   `json:"name"`

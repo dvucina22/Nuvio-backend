@@ -78,6 +78,10 @@ func (h *CardHandler) GetCard(w http.ResponseWriter, r *http.Request) {
 			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 			return
 		}
+		if err == models.ErrInvalidCard {
+			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
 		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -122,6 +126,10 @@ func (h *CardHandler) DeleteCard(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.DeleteCard(r.Context(), userID, cardID); err != nil {
 		if err == models.ErrCardNotFound {
 			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			return
+		}
+		if err == models.ErrInvalidCard {
+			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
 		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/catalog-service/pkg/models"
+	"github.com/catalog-service/pkg/models/products"
 	"github.com/lib/pq"
 )
 
 type ProductRepository interface {
-	GetFilteredProducts(filter *models.ProductFilter) ([]models.Product, error)
+	GetFilteredProducts(filter *products.ProductFilter) ([]products.ProductMinimal, error)
 	ExistsByID(ctx context.Context, productID int) (bool, error)
 }
 
@@ -23,7 +23,7 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepo{db: db}
 }
 
-func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]models.Product, error) {
+func (r *productRepo) GetFilteredProducts(filter *products.ProductFilter) ([]products.ProductMinimal, error) {
 
 	query := `
 		SELECT 
@@ -130,12 +130,12 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 	}
 	defer rows.Close()
 
-	products := make(map[int64]*models.Product)
+	productsList := make(map[int64]*products.ProductMinimal)
 
 	for rows.Next() {
-		var p models.Product
-		var brand models.Brand
-		var category models.Category
+		var p products.ProductMinimal
+		var brand products.Brand
+		var category products.Category
 
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.Description, &p.ModelNumber, &p.SKU, &p.BasePrice, &p.IsActive,
@@ -147,45 +147,44 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 			return nil, err
 		}
 
-		p.Brand = brand
-		p.Category = category
+		p.BrandName = brand.Name
+		p.CategoryName = category.Name
 
-		products[p.ID] = &p
+		productsList[p.ID] = &p
 	}
 
-	if len(products) == 0 {
-		return []models.Product{}, nil
+	if len(productsList) == 0 {
+		return []products.ProductMinimal{}, nil
 	}
 
-	productIDs := make([]int64, 0, len(products))
-	for id := range products {
+	productIDs := make([]int64, 0, len(productsList))
+	for id := range productsList {
 		productIDs = append(productIDs, id)
 	}
 
 	imageQuery := `
-		SELECT id, product_id, url, is_primary
-		FROM catalog.product_images
-		WHERE product_id = ANY($1)
+		SELECT pi.product_id, pi.url
+		FROM catalog.product_images pi
+		WHERE pi.product_id = ANY($1)
+		AND pi.is_primary = TRUE
 	`
 
-	imgRows, err := r.db.Query(imageQuery, pq.Array(productIDs))
+	imageRows, err := r.db.Query(imageQuery, pq.Array(productIDs))
 	if err != nil {
 		return nil, err
 	}
-	defer imgRows.Close()
+	defer imageRows.Close()
 
-	for imgRows.Next() {
-		var img models.ProductImage
+	for imageRows.Next() {
 		var productID int64
+		var imageURL string
 
-		err := imgRows.Scan(
-			&img.ID, &productID, &img.URL, &img.IsPrimary,
-		)
+		err := imageRows.Scan(&productID, &imageURL)
 		if err != nil {
 			return nil, err
 		}
 
-		products[productID].Images = append(products[productID].Images, img)
+		productsList[productID].ImageURL = imageURL
 	}
 
 	attrQuery := `
@@ -202,7 +201,7 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 	defer attrRows.Close()
 
 	for attrRows.Next() {
-		var pa models.ProductAttribute
+		var pa products.ProductAttribute
 		var productID int64
 
 		err := attrRows.Scan(
@@ -215,11 +214,11 @@ func (r *productRepo) GetFilteredProducts(filter *models.ProductFilter) ([]model
 			return nil, err
 		}
 
-		products[productID].Attributes = append(products[productID].Attributes, pa)
+		productsList[productID].Attributes = append(productsList[productID].Attributes, pa)
 	}
 
-	result := make([]models.Product, 0, len(products))
-	for _, p := range products {
+	result := make([]products.ProductMinimal, 0, len(productsList))
+	for _, p := range productsList {
 		result = append(result, *p)
 	}
 
