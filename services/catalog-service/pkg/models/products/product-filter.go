@@ -1,4 +1,4 @@
-package models
+package products
 
 type AttributeFilter struct {
 	Name   string   `json:"name"`
@@ -19,6 +19,8 @@ type ProductFilter struct {
 	Sort   string `json:"sort,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 	Offset int    `json:"offset,omitempty"`
+
+	IsInStock *bool `json:"isInStock,omitempty"`
 
 	IsFavorite       *bool   `json:"isFavorite,omitempty"`
 	IsFavoriteUserID *string `json:"-"`

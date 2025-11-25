@@ -5,6 +5,7 @@ import (
 
 	"github.com/catalog-service/internal/repository"
 	"github.com/catalog-service/pkg/models"
+	"github.com/catalog-service/pkg/models/products"
 )
 
 type ProductService struct {
@@ -17,7 +18,7 @@ func NewProductService(repo repository.ProductRepository) *ProductService {
 	}
 }
 
-func (s *ProductService) GetFilteredProducts(ctx context.Context, filter *models.ProductFilter) ([]models.Product, error) {
+func (s *ProductService) GetFilteredProducts(ctx context.Context, filter *products.ProductFilter) ([]products.ProductMinimal, error) {
 	if filter == nil {
 		return nil, models.ErrInvalidFilter
 	}

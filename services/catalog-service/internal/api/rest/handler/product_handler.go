@@ -8,6 +8,7 @@ import (
 	"github.com/catalog-service/internal/api/rest/middleware"
 	"github.com/catalog-service/internal/service"
 	"github.com/catalog-service/pkg/models"
+	"github.com/catalog-service/pkg/models/products"
 	"github.com/catalog-service/pkg/response"
 )
 
@@ -20,7 +21,7 @@ func NewProductHandler(s *service.ProductService) *ProductHandler {
 }
 
 func (h *ProductHandler) GetFilteredProducts(w http.ResponseWriter, r *http.Request) {
-	var filter models.ProductFilter
+	var filter products.ProductFilter
 
 	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]string{

@@ -6,7 +6,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"strings"
 	"time"
 
@@ -31,16 +30,18 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 	if req == nil {
 		return nil, models.ErrMissingFields
 	}
+
 	if !s.validateCardNumber(req.CardNumber) {
-		return nil, models.ErrInvalidCard
+		return nil, models.ErrInvalidCardNumber
 	}
+
 	if !s.validateExpiration(req.ExpirationMonth, req.ExpirationYear) {
-		return nil, fmt.Errorf("card expired")
+		return nil, models.ErrCardExpired
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user ID")
+		return nil, models.ErrInvalidUserId
 	}
 
 	last4 := req.CardNumber[len(req.CardNumber)-4:]
@@ -49,7 +50,7 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 
 	encPAN, iv, err := s.encryptPAN([]byte(req.CardNumber))
 	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt pan: %w", err)
+		return nil, models.ErrEncryptionFailed
 	}
 
 	card := &models.BankCard{
@@ -65,7 +66,7 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 	}
 
 	if err := s.repo.Create(ctx, userUUID, card, req.IsPrimary); err != nil {
-		return nil, fmt.Errorf("failed to save card: %w", err)
+		return nil, models.ErrDatabaseOperation
 	}
 
 	card.PANEncrypted = nil
@@ -78,20 +79,26 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 func (s *CardService) GetCards(ctx context.Context, userID string) ([]*models.BankCard, error) {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user ID")
+		return nil, models.ErrInvalidUserId
 	}
-	return s.repo.FindByUserID(ctx, userUUID)
+
+	cards, err := s.repo.FindByUserID(ctx, userUUID)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+
+	return cards, nil
 }
 
 func (s *CardService) GetCard(ctx context.Context, userID string, cardID int) (*models.BankCard, error) {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user ID")
+		return nil, models.ErrInvalidUserId
 	}
 
 	card, err := s.repo.FindByID(ctx, userUUID, cardID)
 	if err != nil {
-		return nil, err
+		return nil, models.ErrDatabaseOperation
 	}
 	if card == nil {
 		return nil, models.ErrCardNotFound
@@ -103,24 +110,43 @@ func (s *CardService) GetCard(ctx context.Context, userID string, cardID int) (*
 func (s *CardService) DeleteCard(ctx context.Context, userID string, cardID int) error {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return fmt.Errorf("invalid user ID")
+		return models.ErrInvalidUserId
 	}
+
 	exists, err := s.repo.UserHasCard(ctx, userUUID, cardID)
 	if err != nil {
-		return err
+		return models.ErrDatabaseOperation
 	}
 	if !exists {
 		return models.ErrCardNotFound
 	}
-	return s.repo.Delete(ctx, userUUID, cardID)
+
+	if err := s.repo.Delete(ctx, userUUID, cardID); err != nil {
+		return models.ErrDatabaseOperation
+	}
+
+	return nil
 }
 
 func (s *CardService) SetPrimaryCard(ctx context.Context, userID string, cardID int) error {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return fmt.Errorf("invalid user ID")
+		return models.ErrInvalidUserId
 	}
-	return s.repo.SetPrimary(ctx, userUUID, cardID)
+
+	exists, err := s.repo.UserHasCard(ctx, userUUID, cardID)
+	if err != nil {
+		return models.ErrDatabaseOperation
+	}
+	if !exists {
+		return models.ErrCardNotFound
+	}
+
+	if err := s.repo.SetPrimary(ctx, userUUID, cardID); err != nil {
+		return models.ErrDatabaseOperation
+	}
+
+	return nil
 }
 
 func (s *CardService) encryptPAN(pan []byte) ([]byte, []byte, error) {
