@@ -36,6 +36,14 @@ func (h *UserHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.GetUserInfo(claims.UserID)
 	if err != nil {
+		if errors.Is(err, models.ErrUserNotFound) {
+			response.JSON(w, http.StatusNotFound, map[string]string{"error": "user not found"})
+			return
+		}
+		if errors.Is(err, models.ErrMissingFields) {
+			response.JSON(w, http.StatusBadRequest, map[string]string{"error": "missing user ID"})
+			return
+		}
 		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get user info"})
 		return
 	}
