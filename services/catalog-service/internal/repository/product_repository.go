@@ -13,6 +13,7 @@ import (
 type ProductRepository interface {
 	GetFilteredProducts(filter *products.ProductFilter) ([]products.ProductMinimal, error)
 	ExistsByID(ctx context.Context, productID int) (bool, error)
+	GetProductByID(productID int) (*products.Product, error)
 }
 
 type productRepo struct {
@@ -248,4 +249,96 @@ func (r *productRepo) ExistsByID(ctx context.Context, productID int) (bool, erro
 	}
 
 	return true, nil
+}
+
+func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
+	const productQuery = `
+		SELECT 
+			p.id, p.name, p.description, p.model_number, p.sku, p.base_price, p.is_active,
+			p.created_at, p.updated_at, p.quantity,
+			b.id, b.name,
+			c.id, c.name, c.parent_id
+		FROM catalog.products p
+		LEFT JOIN catalog.brands b ON b.id = p.brand_id
+		LEFT JOIN catalog.categories c ON c.id = p.category_id
+		WHERE p.id = $1
+	`
+
+	var p products.Product
+	var brand products.Brand
+	var category products.Category
+
+	err := r.db.QueryRow(productQuery, productID).Scan(
+		&p.ID, &p.Name, &p.Description, &p.ModelNumber, &p.SKU, &p.BasePrice, &p.IsActive,
+		&p.CreatedAt, &p.UpdatedAt, &p.Quantity,
+		&brand.ID, &brand.Name,
+		&category.ID, &category.Name, &category.ParentID,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	p.Brand = brand
+	p.Category = category
+
+	const imagesQuery = `
+		SELECT id, url, is_primary
+		FROM catalog.product_images
+		WHERE product_id = $1
+		ORDER BY is_primary DESC, id ASC
+	`
+
+	imageRows, err := r.db.Query(imagesQuery, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer imageRows.Close()
+
+	for imageRows.Next() {
+		var img products.ProductImage
+		if err := imageRows.Scan(&img.ID, &img.URL, &img.IsPrimary); err != nil {
+			return nil, err
+		}
+		p.Images = append(p.Images, img)
+	}
+	if err := imageRows.Err(); err != nil {
+		return nil, err
+	}
+
+	const attrsQuery = `
+		SELECT pa.product_id, a.id, a.name, a.value
+		FROM catalog.product_attributes pa
+		JOIN catalog.attributes a ON a.id = pa.attribute_id
+		WHERE pa.product_id = $1
+	`
+
+	attrRows, err := r.db.Query(attrsQuery, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer attrRows.Close()
+
+	for attrRows.Next() {
+		var productIDFromRow int64
+		var attr products.ProductAttribute
+
+		if err := attrRows.Scan(
+			&productIDFromRow,
+			&attr.ID,
+			&attr.Name,
+			&attr.Value,
+		); err != nil {
+			return nil, err
+		}
+
+		p.Attributes = append(p.Attributes, attr)
+	}
+	if err := attrRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &p, nil
 }

@@ -23,7 +23,20 @@ func NewUserService(ur repository.UserRepository, ar repository.AccountRepositor
 }
 
 func (s *UserService) GetUserInfo(userID string) (*models.UserMinimal, error) {
-	return s.user_repo.GetUserInfo(userID)
+	if userID == "" {
+		return nil, models.ErrMissingFields
+	}
+
+	user, err := s.user_repo.GetUserInfo(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, models.ErrUserNotFound
+	}
+
+	return user, nil
 }
 
 func (s *UserService) UpdateUserInfo(ctx context.Context, userID string, user *models.UpdateUser) error {
