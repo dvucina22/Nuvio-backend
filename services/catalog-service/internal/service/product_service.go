@@ -42,3 +42,20 @@ func (s *ProductService) GetFilteredProducts(ctx context.Context, filter *produc
 
 	return products, nil
 }
+
+func (s *ProductService) GetProductByID(ctx context.Context, productID int) (*products.Product, error) {
+	if productID <= 0 {
+		return nil, models.ErrInvalidProductID
+	}
+
+	product, err := s.repo.GetProductByID(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	if product == nil {
+		return nil, models.ErrProductNotFound
+	}
+
+	return product, nil
+}

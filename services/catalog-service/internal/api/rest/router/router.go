@@ -30,6 +30,7 @@ func NewRouter(
 	optionalProtected.Use(authMiddleware.OptionalAuth)
 
 	optionalProtected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
+	optionalProtected.HandleFunc("/products/{id}", productHandler.GetProductByID).Methods("GET")
 
 	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
 	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
