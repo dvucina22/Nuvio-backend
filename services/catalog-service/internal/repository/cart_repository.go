@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/catalog-service/pkg/models/cart"
+	"github.com/catalog-service/pkg/models/products"
+	"github.com/lib/pq"
 )
 
 type CartRepository interface {
@@ -105,12 +107,14 @@ func (r *cartRepository) GetCartProducts(userID string) ([]cart.CartProduct, err
             p.name,
             p.base_price,
             b.name AS brand_name,
+            COALESCE(c.name, '') AS category_name,
             bi.quantity,
             CASE WHEN uf.product_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_favorite
         FROM catalog.cart_items bi
         JOIN catalog.carts ca ON ca.id = bi.cart_id
         JOIN catalog.products p ON p.id = bi.product_id
         JOIN catalog.brands b ON b.id = p.brand_id
+        LEFT JOIN catalog.categories c ON c.id = p.category_id
         LEFT JOIN catalog.user_favorites uf 
             ON uf.product_id = p.id AND uf.user_id = $1
         WHERE ca.user_id = $1
@@ -124,6 +128,7 @@ func (r *cartRepository) GetCartProducts(userID string) ([]cart.CartProduct, err
 	defer rows.Close()
 
 	result := []cart.CartProduct{}
+	productIndex := make(map[int64]int)
 
 	for rows.Next() {
 		var dto cart.CartProduct
@@ -133,6 +138,7 @@ func (r *cartRepository) GetCartProducts(userID string) ([]cart.CartProduct, err
 			&dto.Name,
 			&dto.BasePrice,
 			&dto.BrandName,
+			&dto.CategoryName,
 			&dto.Quantity,
 			&dto.IsFavorite,
 		)
@@ -145,7 +151,61 @@ func (r *cartRepository) GetCartProducts(userID string) ([]cart.CartProduct, err
 			return nil, err
 		}
 
+		dto.Attributes = []products.ProductAttribute{}
+
+		productIndex[dto.ID] = len(result)
 		result = append(result, dto)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return []cart.CartProduct{}, nil
+	}
+
+	productIDs := make([]int64, 0, len(productIndex))
+	for id := range productIndex {
+		productIDs = append(productIDs, id)
+	}
+
+	attrQuery := `
+        SELECT pa.product_id, a.id, a.name, a.value
+        FROM catalog.product_attributes pa
+        JOIN catalog.attributes a ON a.id = pa.attribute_id
+        WHERE pa.product_id = ANY($1)
+    `
+
+	attrRows, err := r.db.Query(attrQuery, pq.Array(productIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer attrRows.Close()
+
+	for attrRows.Next() {
+		var (
+			productID int64
+			attrID    int64
+			attrName  string
+			attrValue string
+		)
+
+		if err := attrRows.Scan(&productID, &attrID, &attrName, &attrValue); err != nil {
+			return nil, err
+		}
+
+		if idx, ok := productIndex[productID]; ok {
+			result[idx].Attributes = append(result[idx].Attributes, products.ProductAttribute{
+				ID:    attrID,
+				Name:  attrName,
+				Value: attrValue,
+			})
+		}
+	}
+
+	if err := attrRows.Err(); err != nil {
+		return nil, err
 	}
 
 	return result, nil

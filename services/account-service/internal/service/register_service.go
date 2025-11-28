@@ -52,6 +52,7 @@ func (s *RegisterService) Register(ctx context.Context, req *models.RegisterRequ
 		Email:        req.Email,
 		PhoneNumber:  req.PhoneNumber,
 		PasswordHash: hashedPassword,
+		Gender:       req.Gender,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		IsActive:     true,

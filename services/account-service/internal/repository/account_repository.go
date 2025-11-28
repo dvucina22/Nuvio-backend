@@ -28,9 +28,9 @@ func NewAccountRepository(db *sql.DB) AccountRepository {
 
 func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
 	q := `INSERT INTO account.users (
-			email, phone_number, password_hash, first_name, last_name, is_active
+			email, phone_number, password_hash, first_name, last_name, is_active, gender
 		)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at`
 
 	return r.db.QueryRowContext(
@@ -42,6 +42,7 @@ func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
 		u.FirstName,
 		u.LastName,
 		u.IsActive,
+		u.Gender,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
