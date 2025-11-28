@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/catalog-service/internal/api/rest/middleware"
 	"github.com/catalog-service/internal/service"
 	"github.com/catalog-service/pkg/models"
-	"github.com/catalog-service/pkg/models/cart"
 	"github.com/catalog-service/pkg/response"
+	"github.com/gorilla/mux"
 )
 
 type CartHandler struct {
@@ -26,16 +26,18 @@ func (h *CartHandler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req cart.AddToCartRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	vars := mux.Vars(r)["id"]
+	productID, err := strconv.Atoi(vars)
+
+	if err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid product ID"})
 		return
 	}
 
-	err := h.service.AddProductToCart(r.Context(), claims.UserID, req.ProductID, req.Quantity)
+	err = h.service.AddProductToCart(r.Context(), claims.UserID, productID)
 	if err != nil {
 		switch err {
-		case models.ErrInvalidProductID, models.ErrInvalidQuantity:
+		case models.ErrInvalidProductID:
 			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		default:
 			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
@@ -53,19 +55,19 @@ func (h *CartHandler) RemoveProductFromCart(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req cart.RemoveFromCartRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	vars := mux.Vars(r)["id"]
+	productID, err := strconv.Atoi(vars)
+
+	if err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid product ID"})
 		return
 	}
 
-	err := h.service.RemoveProductFromCart(r.Context(), claims.UserID, req.ProductID)
+	err = h.service.RemoveProductFromCart(r.Context(), claims.UserID, productID)
 	if err != nil {
 		switch err {
-		case models.ErrInvalidProductID:
+		case models.ErrInvalidProductID, models.ErrProductNotInCart:
 			response.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		case models.ErrProductNotInCart:
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		default:
 			response.JSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		}

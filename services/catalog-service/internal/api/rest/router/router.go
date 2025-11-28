@@ -15,6 +15,7 @@ func NewRouter(
 	cartService *service.CartService,
 	brandService *service.BrandService,
 	categoryService *service.CategoryService,
+	attributesService *service.AttributesService,
 ) *mux.Router {
 	r := mux.NewRouter()
 
@@ -23,6 +24,7 @@ func NewRouter(
 	cartHandler := handler.NewCartHandler(cartService)
 	brandHandler := handler.NewBrandHandler(brandService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
+	attributesHandler := handler.NewAttributesHandler(attributesService)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
@@ -38,13 +40,14 @@ func NewRouter(
 
 	optionalProtected.HandleFunc("/brands", brandHandler.GetAllBrands).Methods("GET")
 	optionalProtected.HandleFunc("/categories", categoryHandler.GetAllCategories).Methods("GET")
+	optionalProtected.HandleFunc("/attributes", attributesHandler.GetAttributes).Methods("GET")
 
 	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
 	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
 
-	protected.HandleFunc("/products/cart", cartHandler.AddProductToCart).Methods("POST")
-	protected.HandleFunc("/products/cart", cartHandler.RemoveProductFromCart).Methods("DELETE")
+	protected.HandleFunc("/products/cart/{id}", cartHandler.AddProductToCart).Methods("POST")
+	protected.HandleFunc("/products/cart/{id}", cartHandler.RemoveProductFromCart).Methods("DELETE")
 	protected.HandleFunc("/products/cart", cartHandler.GetCartContents).Methods("GET")
-	protected.HandleFunc("/products/cart/empty", cartHandler.EmptyCart).Methods("DELETE")
+	protected.HandleFunc("/products/cart/empty", cartHandler.EmptyCart).Methods("GET")
 	return r
 }

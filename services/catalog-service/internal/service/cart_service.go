@@ -20,13 +20,9 @@ func NewCartService(repo repository.CartRepository, productRepo repository.Produ
 	}
 }
 
-func (s *CartService) AddProductToCart(ctx context.Context, userID string, productID int, quantity int) error {
+func (s *CartService) AddProductToCart(ctx context.Context, userID string, productID int) error {
 	if productID <= 0 {
 		return models.ErrInvalidProductID
-	}
-
-	if quantity <= 0 {
-		return models.ErrInvalidQuantity
 	}
 
 	exists, err := s.productRepo.ExistsByID(ctx, productID)
@@ -38,7 +34,7 @@ func (s *CartService) AddProductToCart(ctx context.Context, userID string, produ
 		return models.ErrInvalidProductID
 	}
 
-	return s.repo.AddProductToCart(userID, productID, quantity)
+	return s.repo.AddProductToCart(userID, productID)
 }
 
 func (s *CartService) RemoveProductFromCart(ctx context.Context, userID string, productID int) error {

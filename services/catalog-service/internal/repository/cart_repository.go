@@ -9,7 +9,7 @@ import (
 )
 
 type CartRepository interface {
-	AddProductToCart(userID string, productID int, quantity int) error
+	AddProductToCart(userID string, productID int) error
 	RemoveProductFromCart(userID string, productID int) error
 	GetCartContents(userID string) (map[int]int, error)
 	CartExists(userID string) (bool, error)
@@ -25,7 +25,7 @@ func NewCartRepository(db *sql.DB) CartRepository {
 	return &cartRepository{db: db}
 }
 
-func (r *cartRepository) AddProductToCart(userID string, productID int, quantity int) error {
+func (r *cartRepository) AddProductToCart(userID string, productID int) error {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -51,10 +51,10 @@ func (r *cartRepository) AddProductToCart(userID string, productID int, quantity
 
 	_, err = tx.Exec(`
 		INSERT INTO catalog.cart_items (cart_id, product_id, quantity)
-		VALUES ($1, $2, $3)
+		VALUES ($1, $2, 1)
 		ON CONFLICT (cart_id, product_id)
-		DO UPDATE SET quantity = catalog.cart_items.quantity + EXCLUDED.quantity
-	`, cartID, productID, quantity)
+		DO UPDATE SET quantity = catalog.cart_items.quantity + 1
+	`, cartID, productID)
 
 	if err != nil {
 		tx.Rollback()
@@ -65,13 +65,62 @@ func (r *cartRepository) AddProductToCart(userID string, productID int, quantity
 }
 
 func (r *cartRepository) RemoveProductFromCart(userID string, productID int) error {
-	query := `
-		DELETE FROM catalog.cart_items 
-		WHERE product_id = $1 
-		AND cart_id = (SELECT id FROM catalog.carts WHERE user_id = $2)
-	`
-	_, err := r.db.Exec(query, productID, userID)
-	return err
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	var cartID int
+	err = tx.QueryRow(`
+		SELECT id FROM catalog.carts WHERE user_id = $1
+	`, userID).Scan(&cartID)
+
+	if err == sql.ErrNoRows {
+		tx.Rollback()
+		return nil
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	var quantity int
+	err = tx.QueryRow(`
+		SELECT quantity 
+		FROM catalog.cart_items 
+		WHERE cart_id = $1 AND product_id = $2
+	`, cartID, productID).Scan(&quantity)
+
+	if err == sql.ErrNoRows {
+		tx.Rollback()
+		return nil
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if quantity > 1 {
+		_, err = tx.Exec(`
+			UPDATE catalog.cart_items
+			SET quantity = quantity - 1
+			WHERE cart_id = $1 AND product_id = $2
+		`, cartID, productID)
+	} else {
+		_, err = tx.Exec(`
+			DELETE FROM catalog.cart_items
+			WHERE cart_id = $1 AND product_id = $2
+		`, cartID, productID)
+	}
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r *cartRepository) GetCartContents(userID string) (map[int]int, error) {
