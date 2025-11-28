@@ -15,20 +15,24 @@ type Server struct {
 	productService   *service.ProductService
 	favoritesService *service.FavoritesService
 	cartService      *service.CartService
+	brandService     *service.BrandService
+	categoryService  *service.CategoryService
 }
 
 func NewServer(port string, jwtManager *utils.JWTManager, productService *service.ProductService, favoritesService *service.FavoritesService,
-	cartService *service.CartService) *Server {
+	cartService *service.CartService, brandService *service.BrandService, categoryService *service.CategoryService) *Server {
 	return &Server{
 		port:             port,
 		jwtManager:       jwtManager,
 		productService:   productService,
 		favoritesService: favoritesService,
 		cartService:      cartService,
+		brandService:     brandService,
+		categoryService:  categoryService,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService, s.cartService)
+	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService, s.cartService, s.brandService, s.categoryService)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

@@ -11,4 +11,6 @@ var (
 	ErrInvalidQuantity  = errors.New("invalid quantity")
 	ErrProductNotInCart = errors.New("product not in cart")
 	ErrCartNotFound     = errors.New("cart not found")
+	ErrBrandNotFound    = errors.New("brand not found")
+	ErrCategoryNotFound = errors.New("category not found")
 )
