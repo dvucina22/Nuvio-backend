@@ -7,5 +7,4 @@ type RegisterRequest struct {
 	Gender      *string `json:"gender,omitempty"`
 	FirstName   *string `json:"firstName,omitempty"`
 	LastName    *string `json:"lastName,omitempty"`
-	Gender      *string `json:"gender,omitempty"`
 }
