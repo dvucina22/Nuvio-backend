@@ -59,3 +59,46 @@ func (s *ProductService) GetProductByID(ctx context.Context, productID int) (*pr
 
 	return product, nil
 }
+
+func (s *ProductService) DeleteProductByID(ctx context.Context, productID int) error {
+	if productID <= 0 {
+		return models.ErrInvalidProductID
+	}
+
+	exists, err := s.repo.ExistsByID(ctx, productID)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return models.ErrInvalidProductID
+	}
+
+	return s.repo.DeleteProductByID(productID)
+}
+
+func (s *ProductService) UpdateProductByID(ctx context.Context, productID int, product *products.UpdateProduct) error {
+	if productID <= 0 {
+		return models.ErrInvalidProductID
+	}
+	exists, err := s.repo.ExistsByID(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return models.ErrInvalidProductID
+	}
+	if product == nil {
+		return models.ErrInvalidData
+	}
+
+	return s.repo.UpdateProductByID(productID, product)
+}
+
+func (s *ProductService) CreateProduct(product *products.CreateProduct) error {
+	if product == nil {
+		return models.ErrInvalidData
+	}
+
+	return s.repo.CreateProduct(product)
+}

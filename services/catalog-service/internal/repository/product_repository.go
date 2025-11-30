@@ -14,8 +14,10 @@ type ProductRepository interface {
 	GetFilteredProducts(filter *products.ProductFilter) ([]products.ProductMinimal, error)
 	ExistsByID(ctx context.Context, productID int) (bool, error)
 	GetProductByID(productID int) (*products.Product, error)
+	DeleteProductByID(productID int) error
+	UpdateProductByID(productID int, product *products.UpdateProduct) error
+	CreateProduct(product *products.CreateProduct) error
 }
-
 type productRepo struct {
 	db *sql.DB
 }
@@ -341,4 +343,100 @@ func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
 	}
 
 	return &p, nil
+}
+
+func (r *productRepo) DeleteProductByID(productID int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
+		DELETE FROM catalog.products
+		WHERE id = $1
+	`, productID)
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (r *productRepo) UpdateProductByID(productID int, product *products.UpdateProduct) error {
+	const q = `
+		UPDATE catalog.products SET
+			name = COALESCE($1, name),
+			description = COALESCE($2, description),
+			model_number = COALESCE($3, model_number),
+			sku = COALESCE($4, sku),
+			base_price = COALESCE($5, base_price),
+			is_active = COALESCE($6, is_active),
+			brand_id = COALESCE($7, brand_id),
+			category_id = COALESCE($8, category_id),
+			quantity = COALESCE($9, quantity),
+			updated_at = NOW()
+		WHERE id = $10
+	`
+
+	_, err := r.db.Exec(
+		q,
+		product.Name,
+		product.Description,
+		product.ModelNumber,
+		product.SKU,
+		product.BasePrice,
+		product.IsActive,
+		product.BrandID,
+		product.CategoryID,
+		product.Quantity,
+		productID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
+	const q = `
+		INSERT INTO catalog.products (
+			name,
+			description,
+			model_number,
+			sku,
+			base_price,
+			is_active,
+			brand_id,
+			category_id,
+			quantity,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, $8, NOW(), NOW())
+		RETURNING id
+	`
+
+	var productID int64
+
+	err := r.db.QueryRow(
+		q,
+		product.Name,
+		product.Description,
+		product.ModelNumber,
+		product.SKU,
+		product.BasePrice,
+		product.BrandID,
+		product.CategoryID,
+		product.Quantity,
+	).Scan(&productID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
