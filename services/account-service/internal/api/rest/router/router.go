@@ -16,6 +16,7 @@ func NewRouter(
 	jwtManager *utils.JWTManager,
 	passwordHelper *utils.PasswordHelper,
 	clousdinaryService *service.CloudinaryService,
+	roleService *service.RoleService,
 ) *mux.Router {
 	r := mux.NewRouter()
 
@@ -24,6 +25,7 @@ func NewRouter(
 	oauthHandler := handler.NewOAuthHandler(oauthService)
 	userHandler := handler.NewUserHandler(userService, passwordHelper, clousdinaryService)
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
+	roleHandler := handler.NewRoleHandler(roleService)
 
 	accountsAPI := r.PathPrefix("/api/accounts").Subrouter()
 
@@ -41,6 +43,12 @@ func NewRouter(
 
 	protected.HandleFunc("/profile-picture/update", userHandler.UpdateProfilePicture).Methods("PUT")
 	protected.HandleFunc("/profile-picture/upload-signature", userHandler.GetUploadSignature).Methods("GET")
+
+	protected.HandleFunc("/roles", roleHandler.GetAllRoles).Methods("GET")
+	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.AddUserRole).Methods("POST")
+	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.RemoveUserRole).Methods("DELETE")
+
+	protected.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 
 	return r
 }

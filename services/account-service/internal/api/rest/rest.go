@@ -18,11 +18,12 @@ type Server struct {
 	jwtManager        *utils.JWTManager
 	passwordHelper    *utils.PasswordHelper
 	cloudinaryService *service.CloudinaryService
+	roleService       *service.RoleService
 }
 
 func NewServer(port string, registerService *service.RegisterService, loginService *service.LoginService,
 	oauthService *service.OAuthService, userService *service.UserService, jwtManager *utils.JWTManager,
-	passwordHelper *utils.PasswordHelper, cloudinaryService *service.CloudinaryService) *Server {
+	passwordHelper *utils.PasswordHelper, cloudinaryService *service.CloudinaryService, roleService *service.RoleService) *Server {
 	return &Server{
 		port:              port,
 		registerService:   registerService,
@@ -32,10 +33,13 @@ func NewServer(port string, registerService *service.RegisterService, loginServi
 		jwtManager:        jwtManager,
 		passwordHelper:    passwordHelper,
 		cloudinaryService: cloudinaryService,
+		roleService:       roleService,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService, s.jwtManager, s.passwordHelper, s.cloudinaryService)
+	r := router.NewRouter(s.registerService, s.loginService, s.oauthService, s.userService,
+		s.jwtManager, s.passwordHelper, s.cloudinaryService,
+		s.roleService)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

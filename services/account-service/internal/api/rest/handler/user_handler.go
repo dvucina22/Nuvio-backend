@@ -170,3 +170,19 @@ func (h *UserHandler) UpdateProfilePicture(w http.ResponseWriter, r *http.Reques
 		"message": "Profile picture updated successfully",
 	})
 }
+
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+
+	if claims == nil || !Roles(claims.Roles).isAdmin() {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	users, err := h.service.GetAllUsers(r.Context())
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	response.JSON(w, http.StatusOK, users)
+}

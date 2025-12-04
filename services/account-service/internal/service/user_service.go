@@ -81,3 +81,13 @@ func (s *UserService) UpdateUserPassword(ctx context.Context, userID string, pas
 func (s *UserService) UpdateUserProfilePicture(userID string, profilePictureURL *string) error {
 	return s.user_repo.UpdateUserProfilePicture(userID, profilePictureURL)
 }
+
+func (s *UserService) GetAllUsers(ctx context.Context) ([]models.UserAdmin, error) {
+	users, err := s.user_repo.GetAllUsers()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

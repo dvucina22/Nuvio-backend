@@ -88,7 +88,7 @@ func (s *OAuthService) VerifyIDToken(ctx context.Context, p types.Provider, idTo
 			return nil, fmt.Errorf("failed to update last login: %w", err)
 		}
 
-		jwt, err := s.jwtManager.Generate(user.ID, user.Email)
+		jwt, err := s.jwtManager.Generate(user.ID, user.Email, user.Roles)
 		if err != nil {
 			return nil, errors.New("failed to generate authentication token")
 		}
