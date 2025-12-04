@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/catalog-service/pkg/models/products"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
 type ProductRepository interface {
 	GetFilteredProducts(filter *products.ProductFilter) ([]products.ProductMinimal, error)
 	ExistsByID(ctx context.Context, productID int) (bool, error)
-	GetProductByID(productID int) (*products.Product, error)
+	GetProductByID(userID *uuid.UUID, productID int) (*products.Product, error)
 	DeleteProductByID(productID int) error
 	UpdateProductByID(productID int, product *products.UpdateProduct) error
 	CreateProduct(product *products.CreateProduct) error
@@ -253,18 +254,18 @@ func (r *productRepo) ExistsByID(ctx context.Context, productID int) (bool, erro
 	return true, nil
 }
 
-func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
+func (r *productRepo) GetProductByID(userID *uuid.UUID, productID int) (*products.Product, error) {
 	const productQuery = `
-		SELECT 
-			p.id, p.name, p.description, p.model_number, p.sku, p.base_price, p.is_active,
-			p.created_at, p.updated_at, p.quantity,
-			b.id, b.name,
-			c.id, c.name, c.parent_id
-		FROM catalog.products p
-		LEFT JOIN catalog.brands b ON b.id = p.brand_id
-		LEFT JOIN catalog.categories c ON c.id = p.category_id
-		WHERE p.id = $1
-	`
+        SELECT 
+            p.id, p.name, p.description, p.model_number, p.sku, p.base_price, p.is_active,
+            p.created_at, p.updated_at, p.quantity,
+            b.id, b.name,
+            c.id, c.name, c.parent_id
+        FROM catalog.products p
+        LEFT JOIN catalog.brands b ON b.id = p.brand_id
+        LEFT JOIN catalog.categories c ON c.id = p.category_id
+        WHERE p.id = $1
+    `
 
 	var p products.Product
 	var brand products.Brand
@@ -287,12 +288,11 @@ func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
 	p.Category = category
 
 	const imagesQuery = `
-		SELECT id, url, is_primary
-		FROM catalog.product_images
-		WHERE product_id = $1
-		ORDER BY is_primary DESC, id ASC
-	`
-
+        SELECT id, url, is_primary
+        FROM catalog.product_images
+        WHERE product_id = $1
+        ORDER BY is_primary DESC, id ASC
+    `
 	imageRows, err := r.db.Query(imagesQuery, p.ID)
 	if err != nil {
 		return nil, err
@@ -306,17 +306,13 @@ func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
 		}
 		p.Images = append(p.Images, img)
 	}
-	if err := imageRows.Err(); err != nil {
-		return nil, err
-	}
 
 	const attrsQuery = `
-		SELECT pa.product_id, a.id, a.name, a.value
-		FROM catalog.product_attributes pa
-		JOIN catalog.attributes a ON a.id = pa.attribute_id
-		WHERE pa.product_id = $1
-	`
-
+        SELECT pa.product_id, a.id, a.name, a.value
+        FROM catalog.product_attributes pa
+        JOIN catalog.attributes a ON a.id = pa.attribute_id
+        WHERE pa.product_id = $1
+    `
 	attrRows, err := r.db.Query(attrsQuery, p.ID)
 	if err != nil {
 		return nil, err
@@ -324,24 +320,33 @@ func (r *productRepo) GetProductByID(productID int) (*products.Product, error) {
 	defer attrRows.Close()
 
 	for attrRows.Next() {
-		var productIDFromRow int64
+		var pid int64
 		var attr products.ProductAttribute
-
-		if err := attrRows.Scan(
-			&productIDFromRow,
-			&attr.ID,
-			&attr.Name,
-			&attr.Value,
-		); err != nil {
+		if err := attrRows.Scan(&pid, &attr.ID, &attr.Name, &attr.Value); err != nil {
 			return nil, err
 		}
-
 		p.Attributes = append(p.Attributes, attr)
 	}
-	if err := attrRows.Err(); err != nil {
+
+	if userID == nil {
+		p.IsFavorite = false
+		return &p, nil
+	}
+
+	const favQuery = `
+    SELECT EXISTS(
+        SELECT 1 
+        FROM catalog.user_favorites 
+        WHERE user_id = $1 AND product_id = $2
+    )`
+
+	var isFavorite bool
+	err = r.db.QueryRow(favQuery, *userID, p.ID).Scan(&isFavorite)
+	if err != nil {
 		return nil, err
 	}
 
+	p.IsFavorite = isFavorite
 	return &p, nil
 }
 

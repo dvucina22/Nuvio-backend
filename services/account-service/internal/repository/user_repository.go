@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/account-service/pkg/models"
 )
@@ -11,6 +12,7 @@ type UserRepository interface {
 	UpdateUserInfo(userID string, user *models.UpdateUser) error
 	UpdateUserPassword(userID, hashedPassword string) error
 	UpdateUserProfilePicture(userID string, profilePictureURL *string) error
+	GetAllUsers() ([]models.UserAdmin, error)
 }
 
 type userRepo struct {
@@ -72,4 +74,69 @@ func (r *userRepo) UpdateUserProfilePicture(userID string, profilePictureURL *st
 	}
 
 	return nil
+}
+
+func (r *userRepo) GetAllUsers() ([]models.UserAdmin, error) {
+	const q = `
+        SELECT 
+            u.id,
+            u.email,
+            u.phone_number,
+            u.first_name,
+            u.last_name,
+            u.is_active,
+            u.created_at,
+            u.updated_at,
+            u.last_login_at,
+            u.profile_picture_url,
+            COALESCE(
+                json_agg(
+                    json_build_object('id', r2.id, 'name', r2.name)
+                ) FILTER (WHERE r2.id IS NOT NULL),
+                '[]'
+            ) AS roles
+        FROM account.users u
+        LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+        LEFT JOIN account.user_roles r2 ON r2.id = m.role_id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC;
+    `
+
+	rows, err := r.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.UserAdmin
+
+	for rows.Next() {
+		var u models.UserAdmin
+		var rolesJSON []byte
+
+		err := rows.Scan(
+			&u.ID,
+			&u.Email,
+			&u.PhoneNumber,
+			&u.FirstName,
+			&u.LastName,
+			&u.IsActive,
+			&u.CreatedAt,
+			&u.UpdatedAt,
+			&u.LastLoginAt,
+			&u.ProfilePictureURL,
+			&rolesJSON,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(rolesJSON, &u.Roles); err != nil {
+			return nil, err
+		}
+
+		users = append(users, u)
+	}
+
+	return users, nil
 }

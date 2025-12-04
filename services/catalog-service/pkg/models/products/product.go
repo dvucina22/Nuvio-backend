@@ -19,4 +19,6 @@ type Product struct {
 	UpdatedAt string `json:"updatedAt"`
 
 	Quantity int64 `json:"quantity,omitempty"`
+
+	IsFavorite bool `json:"isFavorite,omitempty"`
 }

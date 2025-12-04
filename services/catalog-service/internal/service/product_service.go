@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 
+	"github.com/catalog-service/internal/api/rest/middleware"
 	"github.com/catalog-service/internal/repository"
 	"github.com/catalog-service/pkg/models"
 	"github.com/catalog-service/pkg/models/products"
+	"github.com/google/uuid"
 )
 
 type ProductService struct {
@@ -48,7 +50,17 @@ func (s *ProductService) GetProductByID(ctx context.Context, productID int) (*pr
 		return nil, models.ErrInvalidProductID
 	}
 
-	product, err := s.repo.GetProductByID(productID)
+	var userId *uuid.UUID
+
+	claims := middleware.GetUserClaims(ctx)
+	if claims != nil && claims.UserID != "" {
+		parsed, err := uuid.Parse(claims.UserID)
+		if err == nil {
+			userId = &parsed
+		}
+	}
+
+	product, err := s.repo.GetProductByID(userId, productID)
 	if err != nil {
 		return nil, err
 	}

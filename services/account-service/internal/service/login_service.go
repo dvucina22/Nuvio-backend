@@ -45,7 +45,7 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 		return nil, err
 	}
 
-	token, err := s.jwtManager.Generate(user.ID, user.Email)
+	token, err := s.jwtManager.Generate(user.ID, user.Email, user.Roles)
 	if err != nil {
 		return nil, errors.New("failed to generate token")
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/account-service/pkg/models"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -48,23 +49,30 @@ func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
 
 func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	var u models.User
+	var roles []sql.NullString
 
-	q := `SELECT 
-			id,
-			email,
-			phone_number,
-			password_hash,
-			gender,
-			profile_picture_url,
-			first_name,
-			last_name,
-			is_active,
-			created_at,
-			updated_at,
-			last_login_at
-		FROM account.users
-		WHERE email = $1
-		LIMIT 1`
+	q := `
+        SELECT 
+            u.id,
+            u.email,
+            u.phone_number,
+            u.password_hash,
+            u.gender,
+            u.profile_picture_url,
+            u.first_name,
+            u.last_name,
+            u.is_active,
+            u.created_at,
+            u.updated_at,
+            u.last_login_at,
+            COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles
+        FROM account.users u
+        LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+        LEFT JOIN account.user_roles r ON r.id = m.role_id
+        WHERE u.email = $1
+        GROUP BY u.id
+        LIMIT 1
+    `
 
 	err := r.db.QueryRowContext(ctx, q, email).Scan(
 		&u.ID,
@@ -79,6 +87,7 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&u.LastLoginAt,
+		pq.Array(&roles),
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -86,6 +95,12 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	for _, r := range roles {
+		if r.Valid {
+			u.Roles = append(u.Roles, r.String)
+		}
 	}
 
 	return &u, nil
