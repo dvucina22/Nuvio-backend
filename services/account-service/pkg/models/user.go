@@ -19,5 +19,5 @@ type User struct {
 	LastLoginAt       *time.Time `json:"lastLoginAt,omitempty" db:"last_login_at"`
 	ProfilePictureURL *string    `json:"profilePictureUrl,omitempty" db:"profile_picture_url"`
 	Gender            *string    `json:"gender,omitempty" db:"gender"`
-	Roles             []string   `json:"roles,omitempty"`
+	Roles             []Role     `json:"roles,omitempty"`
 }

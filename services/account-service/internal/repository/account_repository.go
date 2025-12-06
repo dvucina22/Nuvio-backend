@@ -47,9 +47,12 @@ func (r *accountRepo) Create(ctx context.Context, u *models.User) error {
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
-func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	var u models.User
-	var roles []sql.NullString
+func (r *accountRepo) FindByEmail(ctx context.Context, id string) (*models.User, error) {
+	var (
+		u         models.User
+		roleIDs   []sql.NullInt64
+		roleNames []sql.NullString
+	)
 
 	q := `
         SELECT 
@@ -65,7 +68,8 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
             u.created_at,
             u.updated_at,
             u.last_login_at,
-            COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS roles
+            COALESCE(array_agg(r.id)   FILTER (WHERE r.id   IS NOT NULL), '{}') AS role_ids,
+            COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS role_names
         FROM account.users u
         LEFT JOIN account.user_roles_map m ON m.user_id = u.id
         LEFT JOIN account.user_roles r ON r.id = m.role_id
@@ -74,7 +78,7 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
         LIMIT 1
     `
 
-	err := r.db.QueryRowContext(ctx, q, email).Scan(
+	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&u.ID,
 		&u.Email,
 		&u.PhoneNumber,
@@ -87,7 +91,8 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&u.LastLoginAt,
-		pq.Array(&roles),
+		pq.Array(&roleIDs),
+		pq.Array(&roleNames),
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -97,10 +102,25 @@ func (r *accountRepo) FindByEmail(ctx context.Context, email string) (*models.Us
 		return nil, err
 	}
 
-	for _, r := range roles {
-		if r.Valid {
-			u.Roles = append(u.Roles, r.String)
+	if len(roleIDs) > 0 && len(roleIDs) == len(roleNames) {
+		roles := make([]models.Role, 0, len(roleIDs))
+		for i := range roleIDs {
+			if !roleIDs[i].Valid && !roleNames[i].Valid {
+				continue
+			}
+
+			role := models.Role{}
+			if roleIDs[i].Valid {
+				role.ID = int(roleIDs[i].Int64)
+			}
+			if roleNames[i].Valid {
+				role.Name = roleNames[i].String
+			}
+
+			roles = append(roles, role)
 		}
+
+		u.Roles = roles
 	}
 
 	return &u, nil
@@ -113,26 +133,51 @@ func (r *accountRepo) UpdateLastLogin(ctx context.Context, id uuid.UUID, t time.
 }
 
 func (r *accountRepo) FindById(ctx context.Context, id string) (*models.User, error) {
-	var u models.User
-	q := `SELECT id, email, phone_number, password_hash, first_name, last_name, is_active, created_at, updated_at, last_login_at,
-		gender, profile_picture_url
-		FROM account.users
-		WHERE id = $1
-		LIMIT 1`
+	var (
+		u         models.User
+		roleIDs   []sql.NullInt64
+		roleNames []sql.NullString
+	)
+
+	q := `
+        SELECT 
+            u.id,
+            u.email,
+            u.phone_number,
+            u.password_hash,
+            u.gender,
+            u.profile_picture_url,
+            u.first_name,
+            u.last_name,
+            u.is_active,
+            u.created_at,
+            u.updated_at,
+            u.last_login_at,
+            COALESCE(array_agg(r.id)   FILTER (WHERE r.id   IS NOT NULL), '{}') AS role_ids,
+            COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS role_names
+        FROM account.users u
+        LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+        LEFT JOIN account.user_roles r ON r.id = m.role_id
+        WHERE u.id = $1
+        GROUP BY u.id
+        LIMIT 1
+    `
 
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&u.ID,
 		&u.Email,
 		&u.PhoneNumber,
 		&u.PasswordHash,
+		&u.Gender,
+		&u.ProfilePictureURL,
 		&u.FirstName,
 		&u.LastName,
 		&u.IsActive,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 		&u.LastLoginAt,
-		&u.Gender,
-		&u.ProfilePictureURL,
+		pq.Array(&roleIDs),
+		pq.Array(&roleNames),
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -141,5 +186,27 @@ func (r *accountRepo) FindById(ctx context.Context, id string) (*models.User, er
 	if err != nil {
 		return nil, err
 	}
+
+	if len(roleIDs) > 0 && len(roleIDs) == len(roleNames) {
+		roles := make([]models.Role, 0, len(roleIDs))
+		for i := range roleIDs {
+			if !roleIDs[i].Valid && !roleNames[i].Valid {
+				continue
+			}
+
+			role := models.Role{}
+			if roleIDs[i].Valid {
+				role.ID = int(roleIDs[i].Int64)
+			}
+			if roleNames[i].Valid {
+				role.Name = roleNames[i].String
+			}
+
+			roles = append(roles, role)
+		}
+
+		u.Roles = roles
+	}
+
 	return &u, nil
 }

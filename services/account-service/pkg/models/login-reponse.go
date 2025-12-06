@@ -8,4 +8,5 @@ type LoginResponse struct {
 	Gender            *string `json:"gender,omitempty"`
 	ProfilePictureURL *string `json:"profilePictureUrl,omitempty"`
 	PhoneNumber       *string `json:"phoneNumber,omitempty"`
+	Roles             *[]Role `json:"roles,omitempty"`
 }

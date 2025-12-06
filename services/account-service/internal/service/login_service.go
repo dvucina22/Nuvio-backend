@@ -45,7 +45,11 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 		return nil, err
 	}
 
-	token, err := s.jwtManager.Generate(user.ID, user.Email, user.Roles)
+	roleStrings := make([]string, len(user.Roles))
+	for i, r := range user.Roles {
+		roleStrings[i] = string(r.Name)
+	}
+	token, err := s.jwtManager.Generate(user.ID, user.Email, roleStrings)
 	if err != nil {
 		return nil, errors.New("failed to generate token")
 	}
@@ -66,5 +70,6 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 		Gender:            user.Gender,
 		ProfilePictureURL: user.ProfilePictureURL,
 		PhoneNumber:       user.PhoneNumber,
+		Roles:             &user.Roles,
 	}, nil
 }
