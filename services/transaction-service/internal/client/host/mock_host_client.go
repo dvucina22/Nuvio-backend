@@ -18,7 +18,7 @@ type MockHostClient struct {
 
 type HostClient interface {
 	AuthorizeSale(ctx context.Context, userID uuid.UUID, req *models.HostSaleRequest) (*models.HostSaleResponse, error)
-	AuthorizeVoid(ctx context.Context, userID uuid.UUID, orig *models.Transaction) (*models.HostSaleResponse, error)
+	AuthorizeVoid(ctx context.Context, orig *models.Transaction) (*models.HostSaleResponse, error)
 }
 
 func NewMockHostClient(terminalCredRepo repository.TerminalCredentialRepository) MockHostClient {
@@ -66,7 +66,7 @@ func (c *MockHostClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, re
 	return resp, nil
 }
 
-func (c *MockHostClient) AuthorizeVoid(ctx context.Context, userID uuid.UUID, orig *models.Transaction) (*models.HostSaleResponse, error) {
+func (c *MockHostClient) AuthorizeVoid(ctx context.Context, orig *models.Transaction) (*models.HostSaleResponse, error) {
 	if orig == nil {
 		return nil, fmt.Errorf("original transaction is nil")
 	}

@@ -33,5 +33,6 @@ func NewRouter(
 
 	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST")
 	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST")
+	protected.HandleFunc("/{transaction_id}", transactionHandler.GetTransaction).Methods("GET")
 	return r
 }

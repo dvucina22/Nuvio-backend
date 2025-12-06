@@ -12,8 +12,10 @@ import (
 type TransactionRepository interface {
 	CreateSale(ctx context.Context, tx *models.Transaction, products []*models.TransactionProduct) error
 	GetTransactionByID(ctx context.Context, userID uuid.UUID, txID int64) (*models.Transaction, error)
+	GetTransactionByIDAdmin(ctx context.Context, txID int64) (*models.Transaction, error)
 	VoidTransaction(ctx context.Context, voidTx *models.Transaction) error
 	HasVoidForOriginal(ctx context.Context, originalTxID int64) (bool, error)
+	GetTransactionWithProducts(ctx context.Context, userID uuid.UUID, txID int64) (*models.Transaction, []*models.TransactionProduct, error)
 }
 
 type transactionRepo struct {
@@ -236,6 +238,93 @@ func (r *transactionRepo) GetTransactionByID(ctx context.Context, userID uuid.UU
 	return &tx, nil
 }
 
+func (r *transactionRepo) GetTransactionByIDAdmin(ctx context.Context, txID int64) (*models.Transaction, error) {
+	q := `
+        SELECT 
+            id,
+            user_id,
+            bank_card_id,
+            type,
+            status,
+            pan_masked,
+            card_first_digit,
+            card_expiration_yy,
+            card_expiration_mm,
+            processing_code,
+            amount,
+            currency_code,
+            stan,
+            transaction_time,
+            transaction_date,
+            rrn,
+            terminal_tid,
+            merchant_mid,
+            host_type,
+            original_transaction_id,
+            request_payload,
+            created_at,
+            updated_at
+        FROM transaction.transactions
+        WHERE id = $1
+        LIMIT 1
+    `
+
+	var (
+		tx           models.Transaction
+		bankCardID   sql.NullInt64
+		originalTxID sql.NullInt64
+	)
+
+	err := r.db.QueryRowContext(ctx, q, txID).Scan(
+		&tx.ID,
+		&tx.UserID,
+		&bankCardID,
+		&tx.Type,
+		&tx.Status,
+		&tx.PANMasked,
+		&tx.CardFirstDigit,
+		&tx.CardExpirationYY,
+		&tx.CardExpirationMM,
+		&tx.ProcessingCode,
+		&tx.Amount,
+		&tx.CurrencyCode,
+		&tx.STAN,
+		&tx.TransactionTime,
+		&tx.TransactionDate,
+		&tx.RRN,
+		&tx.TerminalTID,
+		&tx.MerchantMID,
+		&tx.HostType,
+		&originalTxID,
+		&tx.RequestPayload,
+		&tx.CreatedAt,
+		&tx.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction: %w", err)
+	}
+
+	if bankCardID.Valid {
+		id := bankCardID.Int64
+		tx.BankCardID = &id
+	} else {
+		tx.BankCardID = nil
+	}
+
+	if originalTxID.Valid {
+		id := originalTxID.Int64
+		tx.OriginalTransactionID = &id
+	} else {
+		tx.OriginalTransactionID = nil
+	}
+
+	return &tx, nil
+}
+
 func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Transaction) error {
 	dbTx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -354,4 +443,73 @@ func (r *transactionRepo) HasVoidForOriginal(ctx context.Context, originalTxID i
 		return false, fmt.Errorf("failed to check void existence: %w", err)
 	}
 	return exists, nil
+}
+
+func (r *transactionRepo) GetTransactionWithProducts(ctx context.Context, userID uuid.UUID, txID int64) (*models.Transaction, []*models.TransactionProduct, error) {
+	tx, err := r.GetTransactionByID(ctx, userID, txID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if tx == nil {
+		return nil, nil, nil
+	}
+
+	q := `
+        SELECT 
+            id,
+            transaction_id,
+            product_id,
+            unit_price,
+            quantity,
+            product_name,
+            product_sku
+        FROM transaction.transaction_products
+        WHERE transaction_id = $1
+        ORDER BY id
+    `
+
+	rows, err := r.db.QueryContext(ctx, q, txID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to query transaction products: %w", err)
+	}
+	defer rows.Close()
+
+	var products []*models.TransactionProduct
+
+	for rows.Next() {
+		var (
+			p        models.TransactionProduct
+			prodName sql.NullString
+			prodSKU  sql.NullString
+		)
+
+		if err := rows.Scan(
+			&p.ID,
+			&p.TransactionID,
+			&p.ProductID,
+			&p.UnitPrice,
+			&p.Quantity,
+			&prodName,
+			&prodSKU,
+		); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan transaction product: %w", err)
+		}
+
+		if prodName.Valid {
+			name := prodName.String
+			p.ProductName = &name
+		}
+		if prodSKU.Valid {
+			sku := prodSKU.String
+			p.ProductSKU = &sku
+		}
+
+		products = append(products, &p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("iteration error for transaction products: %w", err)
+	}
+
+	return tx, products, nil
 }

@@ -95,17 +95,12 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 	return trx, txProducts, nil
 }
 
-func (s *TransactionService) VoidSale(ctx context.Context, userID string, req *models.VoidRequest) (*models.Transaction, error) {
+func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidRequest) (*models.Transaction, error) {
 	if req == nil || req.TransactionID <= 0 {
 		return nil, models.ErrMissingFields
 	}
 
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return nil, models.ErrInvalidUserId
-	}
-
-	orig, err := s.repo.GetTransactionByID(ctx, userUUID, req.TransactionID)
+	orig, err := s.repo.GetTransactionByIDAdmin(ctx, req.TransactionID)
 	if err != nil {
 		return nil, models.ErrDatabaseOperation
 	}
@@ -128,13 +123,14 @@ func (s *TransactionService) VoidSale(ctx context.Context, userID string, req *m
 		return nil, models.ErrVoidAlreadyExists
 	}
 
-	hostResp, err := s.hostClient.AuthorizeVoid(ctx, userUUID, orig)
+	hostResp, err := s.hostClient.AuthorizeVoid(ctx, orig)
 	if err != nil {
 		return nil, fmt.Errorf("Void transaction failed: %w", err)
 	}
 
 	voidTx := &models.Transaction{
-		UserID:                userUUID,
+		UserID: orig.UserID,
+
 		BankCardID:            orig.BankCardID,
 		Type:                  "VOID",
 		Status:                hostResp.Status,
@@ -161,6 +157,27 @@ func (s *TransactionService) VoidSale(ctx context.Context, userID string, req *m
 	}
 
 	return voidTx, nil
+}
+
+func (s *TransactionService) GetTransactionDetail(ctx context.Context, userID string, txID int64) (*models.Transaction, []*models.TransactionProduct, error) {
+	if txID <= 0 {
+		return nil, nil, models.ErrMissingFields
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, nil, models.ErrInvalidUserId
+	}
+
+	tx, products, err := s.repo.GetTransactionWithProducts(ctx, userUUID, txID)
+	if err != nil {
+		return nil, nil, models.ErrDatabaseOperation
+	}
+	if tx == nil {
+		return nil, nil, models.ErrTransactionNotFound
+	}
+
+	return tx, products, nil
 }
 
 func buildTransactionProductsFromRequest(req *models.SaleRequest) ([]*models.TransactionProduct, int64, error) {

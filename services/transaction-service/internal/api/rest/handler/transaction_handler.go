@@ -12,6 +12,7 @@ import (
 	"github.com/transaction-service/internal/service"
 	"github.com/transaction-service/pkg/models"
 	"github.com/transaction-service/pkg/response"
+	"github.com/transaction-service/pkg/utils"
 )
 
 type TransactionHandler struct {
@@ -56,7 +57,15 @@ func (h *TransactionHandler) CreateSale(w http.ResponseWriter, r *http.Request) 
 
 func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-	userID := claims.UserID
+	if claims == nil {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	if !isAdmin(claims) {
+		response.JSON(w, http.StatusForbidden, map[string]string{"error": "forbidden"})
+		return
+	}
 
 	vars := mux.Vars(r)
 	idStr := vars["transaction_id"]
@@ -70,7 +79,7 @@ func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
 		TransactionID: txID,
 	}
 
-	voidTx, err := h.svc.VoidSale(r.Context(), userID, req)
+	voidTx, err := h.svc.VoidSale(r.Context(), req)
 	if err != nil {
 		statusCode := h.getStatusCode(err)
 		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
@@ -79,6 +88,33 @@ func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusCreated, map[string]any{
 		"data": voidTx,
+	})
+}
+
+func (h *TransactionHandler) GetTransaction(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	userID := claims.UserID
+
+	vars := mux.Vars(r)
+	idStr := vars["transaction_id"]
+	txID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid transaction id"})
+		return
+	}
+
+	tx, products, err := h.svc.GetTransactionDetail(r.Context(), userID, txID)
+	if err != nil {
+		statusCode := h.getStatusCode(err)
+		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]any{
+		"data": map[string]any{
+			"transaction": tx,
+			"products":    products,
+		},
 	})
 }
 
@@ -115,4 +151,18 @@ func (h *TransactionHandler) getStatusCode(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func isAdmin(claims *utils.UserClaims) bool {
+	if claims == nil {
+		return false
+	}
+
+	for _, r := range claims.Roles {
+		if r == "ADMIN" || r == "admin" {
+			return true
+		}
+	}
+
+	return false
 }
