@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/account-service/pkg/models"
+	"github.com/lib/pq"
 )
 
 type UserRepository interface {
@@ -24,16 +25,72 @@ func NewUserRepo(db *sql.DB) UserRepository {
 }
 
 func (r *userRepo) GetUserInfo(userID string) (*models.UserMinimal, error) {
-	const q = `SELECT id, first_name, last_name, email, profile_picture_url, gender, phone_number
-	 FROM account.users WHERE id = $1`
-	var u models.UserMinimal
-	err := r.db.QueryRow(q, userID).Scan(&u.ID, &u.FirstName, &u.LastName, &u.Email, &u.ProfilePictureURL, &u.Gender, &u.PhoneNumber)
+	var (
+		u         models.UserMinimal
+		roleIDs   []sql.NullInt64
+		roleNames []sql.NullString
+	)
+
+	const q = `
+        SELECT 
+            u.id,
+            u.first_name,
+            u.last_name,
+            u.email,
+            u.profile_picture_url,
+            u.gender,
+            u.phone_number,
+            COALESCE(array_agg(r.id)   FILTER (WHERE r.id   IS NOT NULL), '{}') AS role_ids,
+            COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '{}') AS role_names
+        FROM account.users u
+        LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+        LEFT JOIN account.user_roles     r ON r.id = m.role_id
+        WHERE u.id = $1
+        GROUP BY u.id
+        LIMIT 1
+    `
+
+	err := r.db.QueryRow(q, userID).Scan(
+		&u.ID,
+		&u.FirstName,
+		&u.LastName,
+		&u.Email,
+		&u.ProfilePictureURL,
+		&u.Gender,
+		&u.PhoneNumber,
+		pq.Array(&roleIDs),
+		pq.Array(&roleNames),
+	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+
+	if len(roleIDs) > 0 && len(roleIDs) == len(roleNames) {
+		roles := make([]models.Role, 0, len(roleIDs))
+		for i := range roleIDs {
+			if !roleIDs[i].Valid && !roleNames[i].Valid {
+				continue
+			}
+
+			role := models.Role{}
+			if roleIDs[i].Valid {
+				role.ID = int(roleIDs[i].Int64)
+			}
+			if roleNames[i].Valid {
+				role.Name = roleNames[i].String
+			}
+
+			roles = append(roles, role)
+		}
+
+		if len(roles) > 0 {
+			u.Roles = &roles
+		}
+	}
+
 	return &u, nil
 }
 
