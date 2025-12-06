@@ -18,21 +18,14 @@ type TransactionService struct {
 	hostClient host.MockHostClient
 }
 
-func NewTransactionService(
-	repo repository.TransactionRepository,
-	hostClient host.MockHostClient,
-) *TransactionService {
+func NewTransactionService(repo repository.TransactionRepository, hostClient host.MockHostClient) *TransactionService {
 	return &TransactionService{
 		repo:       repo,
 		hostClient: hostClient,
 	}
 }
 
-func (s *TransactionService) CreateSale(
-	ctx context.Context,
-	userID string,
-	req *models.SaleRequest,
-) (*models.Transaction, []*models.TransactionProduct, error) {
+func (s *TransactionService) CreateSale(ctx context.Context, userID string, req *models.SaleRequest) (*models.Transaction, []*models.TransactionProduct, error) {
 	if req == nil {
 		return nil, nil, models.ErrMissingFields
 	}
@@ -102,9 +95,75 @@ func (s *TransactionService) CreateSale(
 	return trx, txProducts, nil
 }
 
-func buildTransactionProductsFromRequest(
-	req *models.SaleRequest,
-) ([]*models.TransactionProduct, int64, error) {
+func (s *TransactionService) VoidSale(ctx context.Context, userID string, req *models.VoidRequest) (*models.Transaction, error) {
+	if req == nil || req.TransactionID <= 0 {
+		return nil, models.ErrMissingFields
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, models.ErrInvalidUserId
+	}
+
+	orig, err := s.repo.GetTransactionByID(ctx, userUUID, req.TransactionID)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+	if orig == nil {
+		return nil, models.ErrTransactionNotFound
+	}
+
+	if strings.ToUpper(orig.Type) != "SALE" {
+		return nil, models.ErrInvalidTransactionType
+	}
+	if strings.ToUpper(orig.Status) != "APPROVED" {
+		return nil, models.ErrInvalidTransactionState
+	}
+
+	hasVoid, err := s.repo.HasVoidForOriginal(ctx, orig.ID)
+	if err != nil {
+		return nil, fmt.Errorf("VoidTransaction failed: %w", err)
+	}
+	if hasVoid {
+		return nil, models.ErrVoidAlreadyExists
+	}
+
+	hostResp, err := s.hostClient.AuthorizeVoid(ctx, userUUID, orig)
+	if err != nil {
+		return nil, fmt.Errorf("Void transaction failed: %w", err)
+	}
+
+	voidTx := &models.Transaction{
+		UserID:                userUUID,
+		BankCardID:            orig.BankCardID,
+		Type:                  "VOID",
+		Status:                hostResp.Status,
+		PANMasked:             orig.PANMasked,
+		CardFirstDigit:        hostResp.CardFirstDigit,
+		CardExpirationYY:      orig.CardExpirationYY,
+		CardExpirationMM:      orig.CardExpirationMM,
+		ProcessingCode:        "020000",
+		Amount:                orig.Amount,
+		CurrencyCode:          orig.CurrencyCode,
+		STAN:                  hostResp.STAN,
+		TransactionTime:       hostResp.TransactionTime,
+		TransactionDate:       hostResp.TransactionDate,
+		RRN:                   hostResp.RRN,
+		TerminalTID:           hostResp.TerminalTID,
+		MerchantMID:           hostResp.MerchantMID,
+		HostType:              hostResp.HostType,
+		OriginalTransactionID: &orig.ID,
+		RequestPayload:        hostResp.RawRequest,
+	}
+
+	if err := s.repo.VoidTransaction(ctx, voidTx); err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+
+	return voidTx, nil
+}
+
+func buildTransactionProductsFromRequest(req *models.SaleRequest) ([]*models.TransactionProduct, int64, error) {
 	var (
 		result []*models.TransactionProduct
 		total  int64

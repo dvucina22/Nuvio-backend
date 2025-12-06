@@ -17,11 +17,8 @@ type MockHostClient struct {
 }
 
 type HostClient interface {
-	AuthorizeSale(
-		ctx context.Context,
-		userID uuid.UUID,
-		req *models.HostSaleRequest,
-	) (*models.HostSaleResponse, error)
+	AuthorizeSale(ctx context.Context, userID uuid.UUID, req *models.HostSaleRequest) (*models.HostSaleResponse, error)
+	AuthorizeVoid(ctx context.Context, userID uuid.UUID, orig *models.Transaction) (*models.HostSaleResponse, error)
 }
 
 func NewMockHostClient(terminalCredRepo repository.TerminalCredentialRepository) MockHostClient {
@@ -30,11 +27,7 @@ func NewMockHostClient(terminalCredRepo repository.TerminalCredentialRepository)
 	}
 }
 
-func (c *MockHostClient) AuthorizeSale(
-	ctx context.Context,
-	userID uuid.UUID,
-	req *models.HostSaleRequest,
-) (*models.HostSaleResponse, error) {
+func (c *MockHostClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req *models.HostSaleRequest) (*models.HostSaleResponse, error) {
 	firstDigit, err := extractFirstDigit(req.CardNumber)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", models.ErrInvalidCardNumber, err)
@@ -66,6 +59,34 @@ func (c *MockHostClient) AuthorizeSale(
 		RRN:             rrn,
 		Status:          "APPROVED",
 		CardFirstDigit:  fmt.Sprintf("%d", firstDigit),
+		RawRequest:      []byte("{}"),
+		RawResponse:     []byte(`{"rc":"00"}`),
+	}
+
+	return resp, nil
+}
+
+func (c *MockHostClient) AuthorizeVoid(ctx context.Context, userID uuid.UUID, orig *models.Transaction) (*models.HostSaleResponse, error) {
+	if orig == nil {
+		return nil, fmt.Errorf("original transaction is nil")
+	}
+
+	hostType := orig.HostType
+
+	now := time.Now().UTC()
+	_ = now
+	stan := generateSTAN()
+
+	resp := &models.HostSaleResponse{
+		HostType:        hostType,
+		TerminalTID:     orig.TerminalTID,
+		MerchantMID:     orig.MerchantMID,
+		STAN:            stan,
+		TransactionTime: orig.TransactionTime,
+		TransactionDate: orig.TransactionDate,
+		RRN:             orig.RRN,
+		Status:          "APPROVED",
+		CardFirstDigit:  orig.CardFirstDigit,
 		RawRequest:      []byte("{}"),
 		RawResponse:     []byte(`{"rc":"00"}`),
 	}

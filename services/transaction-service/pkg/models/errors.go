@@ -16,4 +16,9 @@ var (
 	ErrInvalidProducts             = errors.New("invalid products")
 	ErrTerminalCredentialsNotFound = errors.New("terminal credentials not found")
 	ErrInvalidAmount               = errors.New("invalid amount")
+
+	ErrTransactionNotFound     = errors.New("transaction not found")
+	ErrInvalidTransactionType  = errors.New("invalid transaction type")
+	ErrInvalidTransactionState = errors.New("invalid transaction state")
+	ErrVoidAlreadyExists       = errors.New("void already exists for this transaction")
 )
