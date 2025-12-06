@@ -10,20 +10,22 @@ import (
 )
 
 type Server struct {
-	port        string
-	cardService *service.CardService
-	jwtManager  *utils.JWTManager
+	port               string
+	cardService        *service.CardService
+	jwtManager         *utils.JWTManager
+	transactionService *service.TransactionService
 }
 
-func NewServer(port string, cardService *service.CardService, jwtManager *utils.JWTManager) *Server {
+func NewServer(port string, cardService *service.CardService, jwtManager *utils.JWTManager, transactionService *service.TransactionService) *Server {
 	return &Server{
-		port:        port,
-		cardService: cardService,
-		jwtManager:  jwtManager,
+		port:               port,
+		cardService:        cardService,
+		jwtManager:         jwtManager,
+		transactionService: transactionService,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.jwtManager, s.cardService)
+	r := router.NewRouter(s.jwtManager, s.cardService, s.transactionService)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

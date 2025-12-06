@@ -46,7 +46,6 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 
 	last4 := req.CardNumber[len(req.CardNumber)-4:]
 	brand := s.detectCardBrand(req.CardNumber)
-	token := s.generateToken()
 
 	encPAN, iv, err := s.encryptPAN([]byte(req.CardNumber))
 	if err != nil {
@@ -54,7 +53,6 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 	}
 
 	card := &models.BankCard{
-		Token:           token,
 		PANEncrypted:    encPAN,
 		IV:              iv,
 		LastFourDigits:  last4,

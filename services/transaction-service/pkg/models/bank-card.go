@@ -4,7 +4,6 @@ import "time"
 
 type BankCard struct {
 	ID              int       `json:"id"`
-	Token           string    `json:"token"`
 	LastFourDigits  string    `json:"lastFourDigits"`
 	CardBrand       string    `json:"cardBrand"`
 	ExpirationMonth int       `json:"expirationMonth"`
