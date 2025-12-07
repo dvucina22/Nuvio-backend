@@ -443,5 +443,33 @@ func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
 		return err
 	}
 
+	attrQuery := `
+		INSERT INTO catalog.product_attributes (product_id, attribute_id)
+		VALUES ($1, $2)
+		ON CONFLICT DO NOTHING
+	`
+
+	for _, attrID := range product.AttributeIDs {
+		if _, err := r.db.Exec(attrQuery, productID, attrID); err != nil {
+			return err
+		}
+	}
+
+	if product.ImageURL != "" {
+		imageQuery := `
+			INSERT INTO catalog.product_images (
+				product_id,
+				url,
+				is_primary,
+				created_at
+			)
+			VALUES ($1, $2, FALSE, NOW())
+		`
+
+		if _, err := r.db.Exec(imageQuery, productID, product.ImageURL); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
