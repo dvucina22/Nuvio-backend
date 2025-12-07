@@ -91,3 +91,13 @@ func (s *UserService) GetAllUsers(ctx context.Context) ([]models.UserAdmin, erro
 
 	return users, nil
 }
+
+func (s *UserService) DeactivateUser(userID string) error {
+	err := s.user_repo.DeactivateUser(userID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
