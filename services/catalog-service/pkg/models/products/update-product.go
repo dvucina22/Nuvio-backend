@@ -11,5 +11,8 @@ type UpdateProduct struct {
 	BrandID    *int64 `json:"brandId,omitempty"`
 	CategoryID *int64 `json:"categoryId,omitempty"`
 
+	AttributeIds *[]int64  `json:"attributeIds,omitempty"`
+	ImageURLs    *[]string `json:"imageUrls,omitempty"`
+
 	Quantity *int64 `json:"quantity,omitempty"`
 }

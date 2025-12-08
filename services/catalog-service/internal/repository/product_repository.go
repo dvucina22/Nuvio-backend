@@ -370,36 +370,93 @@ func (r *productRepo) DeleteProductByID(productID int) error {
 }
 
 func (r *productRepo) UpdateProductByID(productID int, product *products.UpdateProduct) error {
-	const q = `
+	const updateProductQ = `
 		UPDATE catalog.products SET
-			name = COALESCE($1, name),
-			description = COALESCE($2, description),
+			name         = COALESCE($1, name),
+			description  = COALESCE($2, description),
 			model_number = COALESCE($3, model_number),
-			sku = COALESCE($4, sku),
-			base_price = COALESCE($5, base_price),
-			is_active = COALESCE($6, is_active),
-			brand_id = COALESCE($7, brand_id),
-			category_id = COALESCE($8, category_id),
-			quantity = COALESCE($9, quantity),
-			updated_at = NOW()
+			sku          = COALESCE($4, sku),
+			base_price   = COALESCE($5, base_price),
+			is_active    = COALESCE($6, is_active),
+			brand_id     = COALESCE($7, brand_id),
+			category_id  = COALESCE($8, category_id),
+			quantity     = COALESCE($9, quantity),
+			updated_at   = NOW()
 		WHERE id = $10
 	`
 
-	_, err := r.db.Exec(
-		q,
-		product.Name,
-		product.Description,
-		product.ModelNumber,
-		product.SKU,
-		product.BasePrice,
-		product.IsActive,
-		product.BrandID,
-		product.CategoryID,
-		product.Quantity,
-		productID,
-	)
+	const deleteAttributesQ = `
+		DELETE FROM catalog.product_attributes
+		WHERE product_id = $1
+	`
 
+	const insertAttributeQ = `
+		INSERT INTO catalog.product_attributes (product_id, attribute_id)
+		VALUES ($1, $2)
+	`
+
+	const deleteImagesQ = `
+		DELETE FROM catalog.product_images
+		WHERE product_id = $1
+	`
+
+	const insertImageQ = `
+		INSERT INTO catalog.product_images (product_id, url, is_primary, created_at)
+		VALUES ($1, $2, $3, NOW())
+	`
+
+	tx, err := r.db.Begin()
 	if err != nil {
+		return err
+	}
+
+	if _, err = tx.Exec(
+		updateProductQ,
+		toNullString(product.Name),
+		toNullString(product.Description),
+		toNullString(product.ModelNumber),
+		toNullString(product.SKU),
+		toNullFloat64(product.BasePrice),
+		toNullBool(product.IsActive),
+		toNullInt64(product.BrandID),
+		toNullInt64(product.CategoryID),
+		toNullInt64(product.Quantity),
+		productID,
+	); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+
+	if product.AttributeIds != nil {
+		if _, err = tx.Exec(deleteAttributesQ, productID); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+
+		for _, attrID := range *product.AttributeIds {
+			if _, err = tx.Exec(insertAttributeQ, productID, attrID); err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	if product.ImageURLs != nil {
+		if _, err = tx.Exec(deleteImagesQ, productID); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+
+		for i, url := range *product.ImageURLs {
+			isPrimary := (i == 0)
+			if _, err = tx.Exec(insertImageQ, productID, url, isPrimary); err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 
@@ -407,7 +464,7 @@ func (r *productRepo) UpdateProductByID(productID int, product *products.UpdateP
 }
 
 func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
-	const q = `
+	const insertProduct = `
 		INSERT INTO catalog.products (
 			name,
 			description,
@@ -425,10 +482,36 @@ func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
 		RETURNING id
 	`
 
+	const insertProductAttribute = `
+		INSERT INTO catalog.product_attributes (product_id, attribute_id)
+		VALUES ($1, $2)
+	`
+
+	const insertProductImage = `
+		INSERT INTO catalog.product_images (product_id, url, is_primary)
+		VALUES ($1, $2, $3)
+	`
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
 	var productID int64
 
-	err := r.db.QueryRow(
-		q,
+	err = tx.QueryRow(
+		insertProduct,
 		product.Name,
 		product.Description,
 		product.ModelNumber,
@@ -438,38 +521,54 @@ func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
 		product.CategoryID,
 		product.Quantity,
 	).Scan(&productID)
-
 	if err != nil {
 		return err
 	}
 
-	attrQuery := `
-		INSERT INTO catalog.product_attributes (product_id, attribute_id)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`
-
-	for _, attrID := range product.AttributeIDs {
-		if _, err := r.db.Exec(attrQuery, productID, attrID); err != nil {
-			return err
+	if len(product.AttributeIds) > 0 {
+		for _, attrID := range product.AttributeIds {
+			if _, err = tx.Exec(insertProductAttribute, productID, attrID); err != nil {
+				return err
+			}
 		}
 	}
 
-	if product.ImageURL != "" {
-		imageQuery := `
-			INSERT INTO catalog.product_images (
-				product_id,
-				url,
-				is_primary,
-				created_at
-			)
-			VALUES ($1, $2, FALSE, NOW())
-		`
-
-		if _, err := r.db.Exec(imageQuery, productID, product.ImageURL); err != nil {
-			return err
+	if len(product.ImageURLs) > 0 {
+		for i, url := range product.ImageURLs {
+			isPrimary := (i == 0)
+			if _, err = tx.Exec(insertProductImage, productID, url, isPrimary); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+func toNullString(v *string) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func toNullFloat64(v *float64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func toNullBool(v *bool) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func toNullInt64(v *int64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
 }
