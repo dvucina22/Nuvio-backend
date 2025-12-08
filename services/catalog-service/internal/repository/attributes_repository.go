@@ -20,7 +20,7 @@ func NewAttributesRepository(db *sql.DB) AttributesRepository {
 
 func (r *attributesRepository) GetAttributes() ([]products.AttributeValues, error) {
 	const attrQuery = `
-        SELECT name, value
+        SELECT id, name, value
         FROM catalog.attributes
         ORDER BY name, value;
     `
@@ -31,61 +31,83 @@ func (r *attributesRepository) GetAttributes() ([]products.AttributeValues, erro
 	}
 	defer rows.Close()
 
-	grouped := make(map[string][]string)
+	grouped := make(map[string][]products.AttributeItem)
 
 	for rows.Next() {
-		var name, value string
-		if err := rows.Scan(&name, &value); err != nil {
+		var (
+			id    int64
+			name  string
+			value string
+		)
+		if err := rows.Scan(&id, &name, &value); err != nil {
 			return nil, err
 		}
-		grouped[name] = append(grouped[name], value)
+
+		grouped[name] = append(grouped[name], products.AttributeItem{
+			ID:    id,
+			Value: value,
+		})
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	brandRows, err := r.db.Query(`SELECT name FROM catalog.brands ORDER BY name`)
+	brandRows, err := r.db.Query(`SELECT id, name FROM catalog.brands ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	defer brandRows.Close()
 
 	for brandRows.Next() {
-		var name string
-		if err := brandRows.Scan(&name); err != nil {
+		var (
+			id   int64
+			name string
+		)
+		if err := brandRows.Scan(&id, &name); err != nil {
 			return nil, err
 		}
-		grouped["brand"] = append(grouped["brand"], name)
+
+		grouped["brand"] = append(grouped["brand"], products.AttributeItem{
+			ID:    id,
+			Value: name,
+		})
 	}
 
 	if err := brandRows.Err(); err != nil {
 		return nil, err
 	}
 
-	categoryRows, err := r.db.Query(`SELECT name FROM catalog.categories ORDER BY name`)
+	categoryRows, err := r.db.Query(`SELECT id, name FROM catalog.categories ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	defer categoryRows.Close()
 
 	for categoryRows.Next() {
-		var name string
-		if err := categoryRows.Scan(&name); err != nil {
+		var (
+			id   int64
+			name string
+		)
+		if err := categoryRows.Scan(&id, &name); err != nil {
 			return nil, err
 		}
-		grouped["category"] = append(grouped["category"], name)
+
+		grouped["category"] = append(grouped["category"], products.AttributeItem{
+			ID:    id,
+			Value: name,
+		})
 	}
 
 	if err := categoryRows.Err(); err != nil {
 		return nil, err
 	}
 
-	filters := make([]products.AttributeValues, 0, len(grouped))
-	for name, values := range grouped {
+	var filters []products.AttributeValues
+	for name, items := range grouped {
 		filters = append(filters, products.AttributeValues{
-			Name:   name,
-			Values: values,
+			Name:  name,
+			Items: items,
 		})
 	}
 
