@@ -10,5 +10,8 @@ type CreateProduct struct {
 	BrandID    int64 `json:"brandId" binding:"required"`
 	CategoryID int64 `json:"categoryId" binding:"required"`
 
+	AttributeIds []int64  `json:"attributeIds,omitempty"`
+	ImageURLs    []string `json:"imageUrls,omitempty"`
+
 	Quantity int64 `json:"quantity,omitempty"`
 }
