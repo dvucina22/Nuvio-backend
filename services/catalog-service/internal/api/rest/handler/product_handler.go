@@ -11,6 +11,7 @@ import (
 	"github.com/catalog-service/pkg/models"
 	"github.com/catalog-service/pkg/models/products"
 	"github.com/catalog-service/pkg/response"
+	"github.com/catalog-service/pkg/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -89,7 +90,8 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 
 func (h *ProductHandler) UpdateProductByID(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-	if claims == nil {
+
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -124,7 +126,8 @@ func (h *ProductHandler) UpdateProductByID(w http.ResponseWriter, r *http.Reques
 
 func (h *ProductHandler) DeleteProductByID(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-	if claims == nil {
+
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -153,7 +156,8 @@ func (h *ProductHandler) DeleteProductByID(w http.ResponseWriter, r *http.Reques
 
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
-	if claims == nil {
+
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
