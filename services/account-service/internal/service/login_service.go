@@ -35,6 +35,9 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 	if user == nil {
 		return nil, errors.New("invalid credentials")
 	}
+	if user.IsActive == false {
+		return nil, errors.New("account is deactivated")
+	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return nil, errors.New("invalid credentials")

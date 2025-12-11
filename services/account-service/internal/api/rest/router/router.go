@@ -49,6 +49,6 @@ func NewRouter(
 	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.RemoveUserRole).Methods("DELETE")
 
 	protected.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
-
+	protected.HandleFunc("/users/{id}", userHandler.DeactivateUser).Methods("DELETE")
 	return r
 }

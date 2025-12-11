@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"github.com/account-service/pkg/models"
 	"github.com/lib/pq"
@@ -14,6 +15,7 @@ type UserRepository interface {
 	UpdateUserPassword(userID, hashedPassword string) error
 	UpdateUserProfilePicture(userID string, profilePictureURL *string) error
 	GetAllUsers() ([]models.UserAdmin, error)
+	DeactivateUser(userID string) error
 }
 
 type userRepo struct {
@@ -192,8 +194,36 @@ func (r *userRepo) GetAllUsers() ([]models.UserAdmin, error) {
 			return nil, err
 		}
 
-		users = append(users, u)
+		if u.IsActive != false {
+			users = append(users, u)
+		}
 	}
 
 	return users, nil
+}
+
+func (r *userRepo) DeactivateUser(userID string) error {
+	const q = `
+		UPDATE account.users 
+		SET 
+			is_active = FALSE,
+			updated_at = NOW()
+		WHERE id = $1;
+	`
+
+	res, err := r.db.Exec(q, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no user found with id %s", userID)
+	}
+
+	return nil
 }
