@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
 	"strings"
 	"time"
 
@@ -46,7 +45,6 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 
 	last4 := req.CardNumber[len(req.CardNumber)-4:]
 	brand := s.detectCardBrand(req.CardNumber)
-	token := s.generateToken()
 
 	encPAN, iv, err := s.encryptPAN([]byte(req.CardNumber))
 	if err != nil {
@@ -54,7 +52,6 @@ func (s *CardService) AddCard(ctx context.Context, userID string, req *models.Ad
 	}
 
 	card := &models.BankCard{
-		Token:           token,
 		PANEncrypted:    encPAN,
 		IV:              iv,
 		LastFourDigits:  last4,
@@ -165,12 +162,6 @@ func (s *CardService) encryptPAN(pan []byte) ([]byte, []byte, error) {
 	}
 	enc := gcm.Seal(nil, iv, pan, nil)
 	return enc, iv, nil
-}
-
-func (s *CardService) generateToken() string {
-	b := make([]byte, 8)
-	rand.Read(b)
-	return "card_" + hex.EncodeToString(b)
 }
 
 func (s *CardService) validateCardNumber(cardNumber string) bool {

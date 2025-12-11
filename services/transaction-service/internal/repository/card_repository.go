@@ -44,7 +44,6 @@ func (r *bankCardRepo) Create(ctx context.Context, userID uuid.UUID, card *model
 
 	q := `
         INSERT INTO transaction.bank_cards (
-            token,
             pan_encrypted,
             iv,
             last_four_digits,
@@ -54,13 +53,12 @@ func (r *bankCardRepo) Create(ctx context.Context, userID uuid.UUID, card *model
             fullname_on_card,
             card_name
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         RETURNING id, created_at, updated_at
     `
 
 	err = tx.QueryRowContext(
 		ctx, q,
-		card.Token,
 		card.PANEncrypted,
 		card.IV,
 		card.LastFourDigits,
@@ -96,7 +94,6 @@ func (r *bankCardRepo) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*m
 	q := `
         SELECT 
             bc.id,
-            bc.token,
             bc.last_four_digits,
             bc.card_brand,
             bc.expiration_month,
@@ -125,7 +122,6 @@ func (r *bankCardRepo) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*m
 
 		err := rows.Scan(
 			&card.ID,
-			&card.Token,
 			&card.LastFourDigits,
 			&card.CardBrand,
 			&card.ExpirationMonth,
@@ -154,7 +150,6 @@ func (r *bankCardRepo) FindByID(ctx context.Context, userID uuid.UUID, cardID in
 	q := `
         SELECT 
             bc.id,
-            bc.token,
             bc.last_four_digits,
             bc.card_brand,
             bc.expiration_month,
@@ -174,7 +169,6 @@ func (r *bankCardRepo) FindByID(ctx context.Context, userID uuid.UUID, cardID in
 
 	err := r.db.QueryRowContext(ctx, q, userID, cardID).Scan(
 		&card.ID,
-		&card.Token,
 		&card.LastFourDigits,
 		&card.CardBrand,
 		&card.ExpirationMonth,
