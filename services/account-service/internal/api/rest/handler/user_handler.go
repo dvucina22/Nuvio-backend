@@ -176,7 +176,7 @@ func (h *UserHandler) UpdateProfilePicture(w http.ResponseWriter, r *http.Reques
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -192,7 +192,7 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -212,7 +212,7 @@ func (h *UserHandler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) FilterUsersByName(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}

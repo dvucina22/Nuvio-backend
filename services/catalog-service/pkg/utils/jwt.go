@@ -46,3 +46,12 @@ func (r Roles) IsAdmin() bool {
 	}
 	return false
 }
+
+func (r Roles) IsAdminOrSeller() bool {
+	for _, role := range r {
+		if role == "admin" || role == "seller" {
+			return true
+		}
+	}
+	return false
+}

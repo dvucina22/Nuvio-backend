@@ -91,7 +91,7 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) UpdateProductByID(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdminOrSeller() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -127,7 +127,7 @@ func (h *ProductHandler) UpdateProductByID(w http.ResponseWriter, r *http.Reques
 func (h *ProductHandler) DeleteProductByID(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdminOrSeller() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -157,7 +157,7 @@ func (h *ProductHandler) DeleteProductByID(w http.ResponseWriter, r *http.Reques
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdminOrSeller() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}

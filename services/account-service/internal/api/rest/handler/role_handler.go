@@ -8,6 +8,7 @@ import (
 	"github.com/account-service/internal/service"
 	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/response"
+	"github.com/account-service/pkg/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -26,7 +27,7 @@ func NewRoleHandler(rs *service.RoleService) *RoleHandler {
 func (h *RoleHandler) GetAllRoles(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -43,7 +44,7 @@ func (h *RoleHandler) GetAllRoles(w http.ResponseWriter, r *http.Request) {
 func (h *RoleHandler) AddUserRole(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -76,7 +77,7 @@ func (h *RoleHandler) AddUserRole(w http.ResponseWriter, r *http.Request) {
 func (h *RoleHandler) RemoveUserRole(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetUserClaims(r.Context())
 
-	if claims == nil || !Roles(claims.Roles).isAdmin() {
+	if claims == nil || !utils.Roles(claims.Roles).IsAdmin() {
 		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
 	}
@@ -104,13 +105,4 @@ func (h *RoleHandler) RemoveUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "role removed successfully"})
-}
-
-func (r Roles) isAdmin() bool {
-	for _, role := range r {
-		if role == "admin" {
-			return true
-		}
-	}
-	return false
 }

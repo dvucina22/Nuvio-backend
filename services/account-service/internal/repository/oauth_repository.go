@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/account-service/pkg/models"
 	"github.com/google/uuid"
@@ -22,15 +23,45 @@ func NewOAuthRepo(db *sql.DB) OAuthRepository {
 }
 
 func (r *oauthRepo) FindByProviderID(ctx context.Context, provider, providerUserID string) (*models.User, error) {
-	const q = `SELECT u.id, u.email, u.phone_number, u.first_name, 
-	u.last_name, u.is_active, u.created_at, u.updated_at, u.last_login_at
-		FROM account.oauth_accounts oa
-		JOIN account.users u ON u.id = oa.user_id
-		WHERE oa.provider = $1 AND oa.provider_user_id = $2`
+	const q = `
+        SELECT 
+            u.id,
+            u.email,
+            u.phone_number,
+            u.first_name,
+            u.last_name,
+            u.is_active,
+            u.created_at,
+            u.updated_at,
+            u.last_login_at,
+            COALESCE(
+                json_agg(
+                    json_build_object('id', r2.id, 'name', r2.name)
+                ) FILTER (WHERE r2.id IS NOT NULL),
+                '[]'
+            ) AS roles
+        FROM account.oauth_accounts oa
+        JOIN account.users u ON u.id = oa.user_id
+        LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+        LEFT JOIN account.user_roles r2 ON r2.id = m.role_id
+        WHERE oa.provider = $1 AND oa.provider_user_id = $2
+        GROUP BY u.id;
+    `
+
 	var u models.User
+	var rolesJSON []byte
+
 	err := r.db.QueryRowContext(ctx, q, provider, providerUserID).Scan(
-		&u.ID, &u.Email, &u.PhoneNumber, &u.FirstName, &u.LastName,
-		&u.IsActive, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt,
+		&u.ID,
+		&u.Email,
+		&u.PhoneNumber,
+		&u.FirstName,
+		&u.LastName,
+		&u.IsActive,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&u.LastLoginAt,
+		&rolesJSON,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -38,6 +69,11 @@ func (r *oauthRepo) FindByProviderID(ctx context.Context, provider, providerUser
 	if err != nil {
 		return nil, err
 	}
+
+	if err := json.Unmarshal(rolesJSON, &u.Roles); err != nil {
+		return nil, err
+	}
+
 	return &u, nil
 }
 
