@@ -50,10 +50,6 @@ func (h *ProductHandler) GetFilteredProducts(w http.ResponseWriter, r *http.Requ
 			response.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid filter"})
 			return
 
-		case errors.Is(err, models.ErrProductNotFound):
-			response.JSON(w, http.StatusNotFound, map[string]string{"error": "no products found"})
-			return
-
 		default:
 			response.JSON(w, http.StatusInternalServerError, map[string]string{
 				"error": err.Error(),

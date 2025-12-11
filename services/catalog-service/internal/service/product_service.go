@@ -38,10 +38,6 @@ func (s *ProductService) GetFilteredProducts(ctx context.Context, filter *produc
 		return nil, err
 	}
 
-	if len(products) == 0 {
-		return nil, models.ErrProductNotFound
-	}
-
 	return products, nil
 }
 
