@@ -110,6 +110,7 @@ func (s *OAuthService) VerifyIDToken(ctx context.Context, p types.Provider, idTo
 			FirstName: firstName,
 			LastName:  lastName,
 			Email:     user.Email,
+			Roles:     &user.Roles,
 		}, nil
 
 	default:

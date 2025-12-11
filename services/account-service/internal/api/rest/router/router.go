@@ -50,5 +50,7 @@ func NewRouter(
 
 	protected.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 	protected.HandleFunc("/users/{id}", userHandler.DeactivateUser).Methods("DELETE")
+	protected.HandleFunc("/users/filter", userHandler.FilterUsersByName).Methods("GET")
+
 	return r
 }

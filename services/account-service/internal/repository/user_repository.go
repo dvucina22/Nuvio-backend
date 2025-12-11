@@ -16,6 +16,7 @@ type UserRepository interface {
 	UpdateUserProfilePicture(userID string, profilePictureURL *string) error
 	GetAllUsers() ([]models.UserAdmin, error)
 	DeactivateUser(userID string) error
+	FilterUsersByName(nameSubstring string) ([]models.UserAdmin, error)
 }
 
 type userRepo struct {
@@ -157,6 +158,13 @@ func (r *userRepo) GetAllUsers() ([]models.UserAdmin, error) {
         FROM account.users u
         LEFT JOIN account.user_roles_map m ON m.user_id = u.id
         LEFT JOIN account.user_roles r2 ON r2.id = m.role_id
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM account.user_roles_map um
+            JOIN account.user_roles ur ON ur.id = um.role_id
+            WHERE um.user_id = u.id
+              AND ur.name = 'admin'
+        )
         GROUP BY u.id
         ORDER BY u.created_at DESC;
     `
@@ -226,4 +234,76 @@ func (r *userRepo) DeactivateUser(userID string) error {
 	}
 
 	return nil
+}
+
+func (r *userRepo) FilterUsersByName(nameSubstring string) ([]models.UserAdmin, error) {
+	const q = `
+		SELECT
+			u.id,
+			u.email,
+			u.phone_number,
+			u.first_name,
+			u.last_name,
+			u.is_active,
+			u.created_at,
+			u.updated_at,
+			u.last_login_at,
+			u.profile_picture_url,
+			COALESCE(
+				json_agg(
+					json_build_object('id', r2.id, 'name', r2.name)
+				) FILTER (WHERE r2.id IS NOT NULL),
+				'[]'
+			) AS roles
+		FROM account.users u
+		LEFT JOIN account.user_roles_map m ON m.user_id = u.id
+		LEFT JOIN account.user_roles r2 ON r2.id = m.role_id
+		WHERE (u.first_name ILIKE '%' || $1 || '%' OR u.last_name ILIKE '%' || $1 || '%')
+		  AND NOT EXISTS (
+				SELECT 1
+				FROM account.user_roles_map um
+				JOIN account.user_roles ur ON ur.id = um.role_id
+				WHERE um.user_id = u.id
+				  AND ur.name = 'admin'
+		  )
+		GROUP BY u.id
+		ORDER BY u.created_at DESC;
+	`
+
+	rows, err := r.db.Query(q, nameSubstring)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.UserAdmin
+	for rows.Next() {
+		var u models.UserAdmin
+		var rolesJSON []byte
+
+		err := rows.Scan(
+			&u.ID,
+			&u.Email,
+			&u.PhoneNumber,
+			&u.FirstName,
+			&u.LastName,
+			&u.IsActive,
+			&u.CreatedAt,
+			&u.UpdatedAt,
+			&u.LastLoginAt,
+			&u.ProfilePictureURL,
+			&rolesJSON,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(rolesJSON, &u.Roles); err != nil {
+			return nil, err
+		}
+
+		users = append(users, u)
+	}
+
+	return users, nil
 }

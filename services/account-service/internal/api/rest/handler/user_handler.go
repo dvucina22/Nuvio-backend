@@ -208,3 +208,20 @@ func (h *UserHandler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, http.StatusOK, map[string]string{"message": "deactivated user"})
 }
+
+func (h *UserHandler) FilterUsersByName(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+
+	if claims == nil || !Roles(claims.Roles).isAdmin() {
+		response.JSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	nameSubstring := r.URL.Query().Get("name")
+	users, err := h.service.FilterUsersByName(nameSubstring)
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	response.JSON(w, http.StatusOK, users)
+}

@@ -101,3 +101,13 @@ func (s *UserService) DeactivateUser(userID string) error {
 
 	return nil
 }
+
+func (s *UserService) FilterUsersByName(nameSubstring string) ([]models.UserAdmin, error) {
+	users, err := s.user_repo.FilterUsersByName(nameSubstring)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
