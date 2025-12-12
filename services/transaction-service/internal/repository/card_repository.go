@@ -14,7 +14,6 @@ type BankCardRepository interface {
 	Create(ctx context.Context, userID uuid.UUID, card *models.BankCard, isPrimary bool) error
 	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*models.BankCard, error)
 	FindByID(ctx context.Context, userID uuid.UUID, cardID int) (*models.BankCard, error)
-	FindEncrypted(ctx context.Context, token string) (*models.EncryptedCardData, error)
 	SetPrimary(ctx context.Context, userID uuid.UUID, cardID int) error
 	Delete(ctx context.Context, userID uuid.UUID, cardID int) error
 	UserHasCard(ctx context.Context, userID uuid.UUID, cardID int) (bool, error)
@@ -188,43 +187,6 @@ func (r *bankCardRepo) FindByID(ctx context.Context, userID uuid.UUID, cardID in
 	}
 
 	return &card, nil
-}
-
-func (r *bankCardRepo) FindEncrypted(ctx context.Context, token string) (*models.EncryptedCardData, error) {
-	q := `
-        SELECT 
-            pan_encrypted,
-            iv,
-            last_four_digits,
-            card_brand,
-            expiration_month,
-            expiration_year,
-            fullname_on_card
-        FROM transaction.bank_cards
-        WHERE token = $1
-        LIMIT 1
-    `
-
-	var enc models.EncryptedCardData
-
-	err := r.db.QueryRowContext(ctx, q, token).Scan(
-		&enc.PANEncrypted,
-		&enc.IV,
-		&enc.LastFourDigits,
-		&enc.CardBrand,
-		&enc.ExpirationMonth,
-		&enc.ExpirationYear,
-		&enc.FullnameOnCard,
-	)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return &enc, nil
 }
 
 func (r *bankCardRepo) SetPrimary(ctx context.Context, userID uuid.UUID, cardID int) error {

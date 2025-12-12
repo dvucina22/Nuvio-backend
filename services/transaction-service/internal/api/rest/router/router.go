@@ -11,12 +11,14 @@ import (
 func NewRouter(
 	jwtManager *utils.JWTManager,
 	cardService *service.CardService,
+	transactionService *service.TransactionService,
 ) *mux.Router {
 	r := mux.NewRouter()
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 
 	cardHandler := handler.NewCardHandler(cardService)
+	transactionHandler := handler.NewTransactionHandler(transactionService)
 
 	transactionsAPI := r.PathPrefix("/api/transactions").Subrouter()
 
@@ -28,5 +30,9 @@ func NewRouter(
 	protected.HandleFunc("/cards", cardHandler.AddCard).Methods("POST")
 	protected.HandleFunc("/cards/{card_id}", cardHandler.DeleteCard).Methods("DELETE")
 	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT")
+
+	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST")
+	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST")
+	protected.HandleFunc("/{transaction_id}", transactionHandler.GetTransaction).Methods("GET")
 	return r
 }

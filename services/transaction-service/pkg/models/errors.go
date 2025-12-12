@@ -11,4 +11,14 @@ var (
 	ErrInvalidCardNumber = errors.New("invalid card number")
 	ErrCardExpired       = errors.New("card has expired")
 	ErrEncryptionFailed  = errors.New("failed to encrypt card data")
+
+	ErrInvalidCurrencyCode         = errors.New("invalid currency code")
+	ErrInvalidProducts             = errors.New("invalid products")
+	ErrTerminalCredentialsNotFound = errors.New("terminal credentials not found")
+	ErrInvalidAmount               = errors.New("invalid amount")
+
+	ErrTransactionNotFound     = errors.New("transaction not found")
+	ErrInvalidTransactionType  = errors.New("invalid transaction type")
+	ErrInvalidTransactionState = errors.New("invalid transaction state")
+	ErrVoidAlreadyExists       = errors.New("void already exists for this transaction")
 )
