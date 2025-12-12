@@ -15,13 +15,15 @@ import (
 
 type TransactionService struct {
 	repo       repository.TransactionRepository
+	cardSvc    *CardService
 	hostClient host.MockHostClient
 }
 
-func NewTransactionService(repo repository.TransactionRepository, hostClient host.MockHostClient) *TransactionService {
+func NewTransactionService(repo repository.TransactionRepository, hostClient host.MockHostClient, cardSvc *CardService) *TransactionService {
 	return &TransactionService{
 		repo:       repo,
 		hostClient: hostClient,
+		cardSvc:    cardSvc,
 	}
 }
 
@@ -39,20 +41,49 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 		return nil, err
 	}
 
+	var (
+		cardPAN       string
+		expMonth      int
+		expYear       int
+		bankCardIDPtr *int64
+	)
+
+	if req.CardID != nil {
+		paymentCard, err := s.cardSvc.GetCardForPayment(ctx, userID, int(*req.CardID))
+		if err != nil {
+			return nil, err
+		}
+
+		cardPAN = paymentCard.PAN
+		expMonth = paymentCard.ExpirationMonth
+		expYear = paymentCard.ExpirationYear
+
+		id64 := int64(*req.CardID)
+		bankCardIDPtr = &id64
+	} else {
+		cardPAN = req.CardNumber
+		expMonth = req.ExpiryMonth
+		expYear = req.ExpiryYear
+	}
+
 	txProducts, totalAmount, err := buildTransactionProductsFromRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
 	if req.TotalAmount > 0 && req.TotalAmount != totalAmount {
-		return nil, fmt.Errorf("%w: totalAmount (%d) does not match sum of products (%d)",
-			models.ErrInvalidAmount, req.TotalAmount, totalAmount)
+		return nil, fmt.Errorf(
+			"%w: totalAmount (%d) does not match sum of products (%d)",
+			models.ErrInvalidAmount,
+			req.TotalAmount,
+			totalAmount,
+		)
 	}
 
 	hostReq := &models.HostSaleRequest{
-		CardNumber:   req.CardNumber,
-		ExpiryMonth:  req.ExpiryMonth,
-		ExpiryYear:   req.ExpiryYear,
+		CardNumber:   cardPAN,
+		ExpiryMonth:  expMonth,
+		ExpiryYear:   expYear,
 		CurrencyCode: req.CurrencyCode,
 		Amount:       totalAmount,
 	}
@@ -62,18 +93,18 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
-	panMasked := maskPAN(req.CardNumber)
-	expYY := req.ExpiryYear % 100
+	panMasked := maskPAN(cardPAN)
+	expYY := expYear % 100
 
 	trx := &models.Transaction{
 		UserID:                userUUID,
-		BankCardID:            nil,
+		BankCardID:            bankCardIDPtr,
 		Type:                  "SALE",
 		Status:                hostResp.Status,
 		PANMasked:             panMasked,
 		CardFirstDigit:        hostResp.CardFirstDigit,
 		CardExpirationYY:      fmt.Sprintf("%02d", expYY),
-		CardExpirationMM:      fmt.Sprintf("%02d", req.ExpiryMonth),
+		CardExpirationMM:      fmt.Sprintf("%02d", expMonth),
 		ProcessingCode:        "000000",
 		Amount:                totalAmount,
 		CurrencyCode:          req.CurrencyCode,
@@ -93,16 +124,14 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 	}
 
 	saleProducts := make([]models.SaleProductResponse, 0, len(txProducts))
-
 	for _, tp := range txProducts {
-		sp := models.SaleProductResponse{
+		saleProducts = append(saleProducts, models.SaleProductResponse{
 			ProductID: tp.ProductID,
 			Quantity:  int32(tp.Quantity),
 			UnitPrice: tp.UnitPrice,
 			Name:      tp.ProductName,
 			SKU:       tp.ProductSKU,
-		}
-		saleProducts = append(saleProducts, sp)
+		})
 	}
 
 	saleResp := &models.SaleResponse{
@@ -147,7 +176,7 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 
 	hostResp, err := s.hostClient.AuthorizeVoid(ctx, orig)
 	if err != nil {
-		return nil, fmt.Errorf("Void transaction failed: %w", err)
+		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
 	voidTx := &models.Transaction{
@@ -239,15 +268,18 @@ func buildTransactionProductsFromRequest(req *models.SaleRequest) ([]*models.Tra
 }
 
 func validateSaleRequest(req *models.SaleRequest) error {
-	if strings.TrimSpace(req.CardNumber) == "" {
-		return fmt.Errorf("%w: cardNumber is required", models.ErrMissingFields)
+	if req.CardID == nil {
+		if strings.TrimSpace(req.CardNumber) == "" {
+			return fmt.Errorf("%w: cardNumber is required", models.ErrMissingFields)
+		}
+		if req.ExpiryMonth < 1 || req.ExpiryMonth > 12 {
+			return fmt.Errorf("%w: expiryMonth must be between 1 and 12", models.ErrInvalidCard)
+		}
+		if req.ExpiryYear < time.Now().Year() {
+			return fmt.Errorf("%w: expiryYear is in the past", models.ErrCardExpired)
+		}
 	}
-	if req.ExpiryMonth < 1 || req.ExpiryMonth > 12 {
-		return fmt.Errorf("%w: expiryMonth must be between 1 and 12", models.ErrInvalidCard)
-	}
-	if req.ExpiryYear < time.Now().Year() {
-		return fmt.Errorf("%w: expiryYear is in the past", models.ErrCardExpired)
-	}
+
 	if len(req.CurrencyCode) != 3 {
 		return fmt.Errorf("%w: currencyCode must be 3 chars (ISO 4217 numeric)", models.ErrInvalidCurrencyCode)
 	}

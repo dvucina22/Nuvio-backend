@@ -12,6 +12,7 @@ type SaleProduct struct {
 
 type SaleRequest struct {
 	UserID       uuid.UUID `json:"userId"`
+	CardID       *int      `json:"cardId,omitempty"`
 	CardNumber   string    `json:"cardNumber"`
 	ExpiryMonth  int       `json:"expiryMonth"`
 	ExpiryYear   int       `json:"expiryYear"`

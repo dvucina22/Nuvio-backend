@@ -18,6 +18,7 @@ type BankCardRepository interface {
 	Delete(ctx context.Context, userID uuid.UUID, cardID int) error
 	UserHasCard(ctx context.Context, userID uuid.UUID, cardID int) (bool, error)
 	UpdateCard(ctx context.Context, card *models.BankCard) error
+	FindByIDWithSecrets(ctx context.Context, userID uuid.UUID, cardID int) (*models.BankCard, error)
 }
 
 type bankCardRepo struct {
@@ -285,6 +286,56 @@ func (r *bankCardRepo) UpdateCard(ctx context.Context, card *models.BankCard) er
 	}
 
 	return nil
+}
+
+func (r *bankCardRepo) FindByIDWithSecrets(ctx context.Context, userID uuid.UUID, cardID int) (*models.BankCard, error) {
+	q := `
+        SELECT 
+            bc.id,
+            bc.pan_encrypted,
+            bc.iv,
+            bc.last_four_digits,
+            bc.card_brand,
+            bc.expiration_month,
+            bc.expiration_year,
+            bc.fullname_on_card,
+            bc.card_name,
+            bc.created_at,
+            bc.updated_at,
+            ubc.is_primary
+        FROM transaction.bank_cards bc
+        INNER JOIN transaction.user_bank_cards ubc 
+            ON bc.id = ubc.card_id
+        WHERE ubc.user_id = $1
+          AND bc.id = $2
+        LIMIT 1
+    `
+
+	var card models.BankCard
+
+	err := r.db.QueryRowContext(ctx, q, userID, cardID).Scan(
+		&card.ID,
+		&card.PANEncrypted,
+		&card.IV,
+		&card.LastFourDigits,
+		&card.CardBrand,
+		&card.ExpirationMonth,
+		&card.ExpirationYear,
+		&card.FullnameOnCard,
+		&card.CardName,
+		&card.CreatedAt,
+		&card.UpdatedAt,
+		&card.IsPrimary,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get card with secrets: %w", err)
+	}
+
+	return &card, nil
 }
 
 func (r *bankCardRepo) unsetPrimaryCards(ctx context.Context, tx *sql.Tx, userID uuid.UUID) error {

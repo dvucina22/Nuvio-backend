@@ -26,7 +26,7 @@ func Run() {
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
 	cardService := service.NewCardService(cardRepo, cfg.EncryptionKey)
-	transactionService := service.NewTransactionService(transactionRepo, mockHostClient)
+	transactionService := service.NewTransactionService(transactionRepo, mockHostClient, cardService)
 
 	server := rest.NewServer(cfg.Port, cardService, jwtManager, transactionService)
 

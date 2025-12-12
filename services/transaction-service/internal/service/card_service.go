@@ -146,6 +146,38 @@ func (s *CardService) SetPrimaryCard(ctx context.Context, userID string, cardID 
 	return nil
 }
 
+func (s *CardService) GetCardForPayment(ctx context.Context, userID string, cardID int) (*models.PaymentCard, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, models.ErrInvalidUserId
+	}
+
+	card, err := s.repo.FindByIDWithSecrets(ctx, userUUID, cardID)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+	if card == nil {
+		return nil, models.ErrCardNotFound
+	}
+
+	if len(card.PANEncrypted) == 0 || len(card.IV) == 0 {
+		return nil, models.ErrEncryptionFailed
+	}
+
+	pan, err := s.decryptPAN(card.PANEncrypted, card.IV)
+	if err != nil {
+		return nil, models.ErrEncryptionFailed
+	}
+
+	return &models.PaymentCard{
+		PAN:             pan,
+		ExpirationMonth: card.ExpirationMonth,
+		ExpirationYear:  card.ExpirationYear,
+		Brand:           card.CardBrand,
+		Last4:           card.LastFourDigits,
+	}, nil
+}
+
 func (s *CardService) encryptPAN(pan []byte) ([]byte, []byte, error) {
 	block, err := aes.NewCipher(s.key)
 	if err != nil {
@@ -207,4 +239,21 @@ func (s *CardService) detectCardBrand(cardNumber string) string {
 		return "amex"
 	}
 	return "unknown"
+}
+
+func (s *CardService) decryptPAN(enc, iv []byte) (string, error) {
+	block, err := aes.NewCipher(s.key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	plain, err := gcm.Open(nil, iv, enc, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
 }
