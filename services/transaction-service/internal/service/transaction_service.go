@@ -25,27 +25,27 @@ func NewTransactionService(repo repository.TransactionRepository, hostClient hos
 	}
 }
 
-func (s *TransactionService) CreateSale(ctx context.Context, userID string, req *models.SaleRequest) (*models.Transaction, []*models.TransactionProduct, error) {
+func (s *TransactionService) CreateSale(ctx context.Context, userID string, req *models.SaleRequest) (*models.SaleResponse, error) {
 	if req == nil {
-		return nil, nil, models.ErrMissingFields
+		return nil, models.ErrMissingFields
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return nil, nil, models.ErrInvalidUserId
+		return nil, models.ErrInvalidUserId
 	}
 
 	if err := validateSaleRequest(req); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	txProducts, totalAmount, err := buildTransactionProductsFromRequest(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if req.TotalAmount > 0 && req.TotalAmount != totalAmount {
-		return nil, nil, fmt.Errorf("%w: totalAmount (%d) does not match sum of products (%d)",
+		return nil, fmt.Errorf("%w: totalAmount (%d) does not match sum of products (%d)",
 			models.ErrInvalidAmount, req.TotalAmount, totalAmount)
 	}
 
@@ -59,7 +59,7 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 
 	hostResp, err := s.hostClient.AuthorizeSale(ctx, userUUID, hostReq)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
+		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
 	panMasked := maskPAN(req.CardNumber)
@@ -89,10 +89,32 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 	}
 
 	if err := s.repo.CreateSale(ctx, trx, txProducts); err != nil {
-		return nil, nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
+		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
-	return trx, txProducts, nil
+	saleProducts := make([]models.SaleProductResponse, 0, len(txProducts))
+
+	for _, tp := range txProducts {
+		sp := models.SaleProductResponse{
+			ProductID: tp.ProductID,
+			Quantity:  int32(tp.Quantity),
+			UnitPrice: tp.UnitPrice,
+			Name:      tp.ProductName,
+			SKU:       tp.ProductSKU,
+		}
+		saleProducts = append(saleProducts, sp)
+	}
+
+	saleResp := &models.SaleResponse{
+		ID:           trx.ID,
+		Status:       trx.Status,
+		Amount:       trx.Amount,
+		CurrencyCode: trx.CurrencyCode,
+		CreatedAt:    trx.CreatedAt,
+		Products:     saleProducts,
+	}
+
+	return saleResp, nil
 }
 
 func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidRequest) (*models.Transaction, error) {

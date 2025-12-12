@@ -40,19 +40,14 @@ func (h *TransactionHandler) CreateSale(w http.ResponseWriter, r *http.Request) 
 
 	req.UserID = parsedUserID
 
-	trx, products, err := h.svc.CreateSale(r.Context(), userID, &req)
+	res, err := h.svc.CreateSale(r.Context(), userID, &req)
 	if err != nil {
 		statusCode := h.getStatusCode(err)
 		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, map[string]any{
-		"data": map[string]any{
-			"transaction": trx,
-			"products":    products,
-		},
-	})
+	response.JSON(w, http.StatusCreated, res)
 }
 
 func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
