@@ -27,7 +27,7 @@ func NewTransactionService(repo repository.TransactionRepository, hostClient hos
 	}
 }
 
-func (s *TransactionService) CreateSale(ctx context.Context, userID string, req *models.SaleRequest) (*models.SaleResponse, error) {
+func (s *TransactionService) CreateSale(ctx context.Context, userID string, req *models.SaleRequest) (*models.SaleCreateResponse, error) {
 	if req == nil {
 		return nil, models.ErrMissingFields
 	}
@@ -127,30 +127,18 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
-	saleProducts := make([]models.SaleProductResponse, 0, len(txProducts))
-	for _, tp := range txProducts {
-		saleProducts = append(saleProducts, models.SaleProductResponse{
-			ProductID: tp.ProductID,
-			Quantity:  int32(tp.Quantity),
-			UnitPrice: tp.UnitPrice,
-			Name:      tp.ProductName,
-			SKU:       tp.ProductSKU,
-		})
-	}
-
-	saleResp := &models.SaleResponse{
+	saleResp := &models.SaleCreateResponse{
 		ID:           trx.ID,
 		Status:       trx.Status,
-		Amount:       trx.Amount,
-		CurrencyCode: trx.CurrencyCode,
+		ResponseCode: *trx.ResponseCode,
+		AuthCode:     trx.AuthCode,
 		CreatedAt:    trx.CreatedAt,
-		Products:     saleProducts,
 	}
 
 	return saleResp, nil
 }
 
-func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidRequest) (*models.Transaction, error) {
+func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidRequest) (*models.VoidCreateResponse, error) {
 	if req == nil || req.TransactionID <= 0 {
 		return nil, models.ErrMissingFields
 	}
@@ -220,7 +208,15 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 		return nil, models.ErrDatabaseOperation
 	}
 
-	return voidTx, nil
+	voidResp := &models.VoidCreateResponse{
+		ID:                    voidTx.ID,
+		OriginalTransactionID: orig.ID,
+		Status:                voidTx.Status,
+		ResponseCode:          *voidTx.ResponseCode,
+		CreatedAt:             voidTx.CreatedAt,
+	}
+
+	return voidResp, nil
 }
 
 func (s *TransactionService) GetTransactionDetail(ctx context.Context, userID string, txID int64) (*models.Transaction, []*models.TransactionProduct, error) {

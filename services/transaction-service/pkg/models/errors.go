@@ -1,6 +1,9 @@
 package models
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var (
 	ErrInvalidCard       = errors.New("invalid card data")
@@ -22,3 +25,46 @@ var (
 	ErrInvalidTransactionState = errors.New("invalid transaction state")
 	ErrVoidAlreadyExists       = errors.New("void already exists for this transaction")
 )
+
+type ApiErr struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func MapError(err error) ApiErr {
+	switch {
+	case errors.Is(err, ErrCardNotFound):
+		return ApiErr{Status: http.StatusNotFound, Code: "CARD_NOT_FOUND", Message: err.Error()}
+
+	case errors.Is(err, ErrTransactionNotFound):
+		return ApiErr{Status: http.StatusNotFound, Code: "TRANSACTION_NOT_FOUND", Message: err.Error()}
+
+	case errors.Is(err, ErrVoidAlreadyExists):
+		return ApiErr{Status: http.StatusConflict, Code: "VOID_ALREADY_EXISTS", Message: err.Error()}
+
+	case errors.Is(err, ErrTerminalCredentialsNotFound):
+		return ApiErr{Status: http.StatusUnprocessableEntity, Code: "TERMINAL_CREDENTIALS_NOT_FOUND", Message: err.Error()}
+
+	case errors.Is(err, ErrInvalidCard),
+		errors.Is(err, ErrInvalidCardNumber),
+		errors.Is(err, ErrCardExpired),
+		errors.Is(err, ErrMissingFields),
+		errors.Is(err, ErrInvalidUserId),
+		errors.Is(err, ErrInvalidCurrencyCode),
+		errors.Is(err, ErrInvalidProducts),
+		errors.Is(err, ErrInvalidAmount),
+		errors.Is(err, ErrInvalidTransactionType),
+		errors.Is(err, ErrInvalidTransactionState):
+		return ApiErr{Status: http.StatusBadRequest, Code: "VALIDATION_ERROR", Message: err.Error()}
+
+	case errors.Is(err, ErrEncryptionFailed):
+		return ApiErr{Status: http.StatusInternalServerError, Code: "ENCRYPTION_FAILED", Message: err.Error()}
+
+	case errors.Is(err, ErrDatabaseOperation):
+		return ApiErr{Status: http.StatusInternalServerError, Code: "DATABASE_OPERATION_FAILED", Message: err.Error()}
+
+	default:
+		return ApiErr{Status: http.StatusInternalServerError, Code: "INTERNAL_ERROR", Message: "internal error"}
+	}
+}
