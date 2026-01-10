@@ -2,7 +2,6 @@ package config
 
 import (
 	"bufio"
-	"encoding/base64"
 	"log"
 	"os"
 	"strings"
@@ -21,11 +20,10 @@ type OAuthConfig struct {
 }
 
 type Config struct {
-	Port          string
-	DatabaseDSN   string
-	JWTSecret     string
-	JWTExpiry     int
-	EncryptionKey []byte
+	Port        string
+	DatabaseDSN string
+	JWTSecret   string
+	JWTExpiry   int
 
 	IsoHostAddr string
 }
@@ -34,12 +32,10 @@ func Load() *Config {
 	loadEnvFile(".env")
 
 	cfg := &Config{
-		Port:          getEnv("ISO_COM_PORT", ""),
-		DatabaseDSN:   getEnv("DATABASE_DSN", ""),
-		JWTSecret:     getEnv("JWT_SECRET", ""),
-		JWTExpiry:     604800,
-		EncryptionKey: loadEncryptionKey(),
-
+		Port:        getEnv("ISO_COM_PORT", ""),
+		DatabaseDSN: getEnv("DATABASE_DSN", ""),
+		JWTSecret:   getEnv("JWT_SECRET", ""),
+		JWTExpiry:   604800,
 		IsoHostAddr: getEnv("ISO_HOST_ADDR", ""),
 	}
 
@@ -93,17 +89,4 @@ func getEnv(key, fallback string) string {
 		return val
 	}
 	return fallback
-}
-
-func loadEncryptionKey() []byte {
-	keyB64 := getEnv("ENCRYPTION_KEY", "")
-	rawKey, err := base64.StdEncoding.DecodeString(keyB64)
-	if err != nil {
-		log.Fatal("Invalid ENCRYPTION_KEY (must be base64 encoded 32 bytes)")
-	}
-	if len(rawKey) != 32 {
-		log.Fatal("ENCRYPTION_KEY must decode to exactly 32 bytes")
-	}
-
-	return rawKey
 }
