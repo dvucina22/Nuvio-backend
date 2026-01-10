@@ -27,9 +27,12 @@ type Transaction struct {
 	MerchantMID           string
 	HostType              string
 	OriginalTransactionID *int64
+	ResponsePayload       []byte
 	RequestPayload        []byte
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
+	ResponseCode          *string
+	AuthCode              *string
 }
 
 type TransactionProduct struct {

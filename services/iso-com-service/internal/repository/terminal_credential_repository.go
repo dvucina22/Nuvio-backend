@@ -15,6 +15,7 @@ type TerminalCredentials struct {
 
 type TerminalCredentialRepository interface {
 	GetActiveByUserAndHost(ctx context.Context, userID uuid.UUID, hostType string) (*TerminalCredentials, error)
+	Create(ctx context.Context, userID uuid.UUID, hostType, tid, mid string, active bool) error
 }
 
 type terminalCredentialRepo struct {
@@ -25,14 +26,10 @@ func NewTerminalCredentialRepository(db *sql.DB) TerminalCredentialRepository {
 	return &terminalCredentialRepo{db: db}
 }
 
-func (r *terminalCredentialRepo) GetActiveByUserAndHost(
-	ctx context.Context,
-	userID uuid.UUID,
-	hostType string,
-) (*TerminalCredentials, error) {
+func (r *terminalCredentialRepo) GetActiveByUserAndHost(ctx context.Context, userID uuid.UUID, hostType string) (*TerminalCredentials, error) {
 	q := `
         SELECT tid, mid
-        FROM transaction.user_terminal_credentials
+        FROM iso_bank_comm.user_terminal_credentials
         WHERE user_id = $1
           AND host_type = $2
           AND active = true
@@ -54,4 +51,18 @@ func (r *terminalCredentialRepo) GetActiveByUserAndHost(
 	}
 
 	return &creds, nil
+}
+
+func (r *terminalCredentialRepo) Create(ctx context.Context, userID uuid.UUID, hostType, tid, mid string, active bool) error {
+	q := `
+		INSERT INTO iso_bank_comm.user_terminal_credentials (user_id, host_type, tid, mid, active)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	_, err := r.db.ExecContext(ctx, q, userID, hostType, tid, mid, active)
+	if err != nil {
+		return fmt.Errorf("failed to create terminal credentials: %w", err)
+	}
+
+	return nil
 }

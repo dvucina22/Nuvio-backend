@@ -27,24 +27,24 @@ type Config struct {
 	JWTExpiry     int
 	EncryptionKey []byte
 
-	IsoComBaseURL string
+	IsoHostAddr string
 }
 
 func Load() *Config {
 	loadEnvFile(".env")
 
 	cfg := &Config{
-		Port:          getEnv("TRANSACTION_PORT", ""),
+		Port:          getEnv("ISO_COM_PORT", ""),
 		DatabaseDSN:   getEnv("DATABASE_DSN", ""),
 		JWTSecret:     getEnv("JWT_SECRET", ""),
 		JWTExpiry:     604800,
 		EncryptionKey: loadEncryptionKey(),
 
-		IsoComBaseURL: getEnv("ISO_COM_BASE_URL", ""),
+		IsoHostAddr: getEnv("ISO_HOST_ADDR", ""),
 	}
 
 	if cfg.Port == "" {
-		log.Fatal("TRANSACTION_PORT not set in .env")
+		log.Fatal("ISO_COM_PORT not set in .env")
 	}
 	if cfg.DatabaseDSN == "" {
 		log.Fatal("DATABASE_DSN not set in .env")
@@ -53,8 +53,8 @@ func Load() *Config {
 		log.Fatal("JWT_SECRET not set in .env")
 	}
 
-	if cfg.IsoComBaseURL == "" {
-		log.Fatal("ISO_COM_BASE_URL not set in .env")
+	if cfg.IsoHostAddr == "" {
+		log.Fatal("ISO_HOST_ADDR not set in .env")
 	}
 
 	return cfg

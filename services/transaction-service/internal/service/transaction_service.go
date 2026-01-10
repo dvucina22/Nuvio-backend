@@ -16,10 +16,10 @@ import (
 type TransactionService struct {
 	repo       repository.TransactionRepository
 	cardSvc    *CardService
-	hostClient host.MockHostClient
+	hostClient host.IsoComClient
 }
 
-func NewTransactionService(repo repository.TransactionRepository, hostClient host.MockHostClient, cardSvc *CardService) *TransactionService {
+func NewTransactionService(repo repository.TransactionRepository, hostClient host.IsoComClient, cardSvc *CardService) *TransactionService {
 	return &TransactionService{
 		repo:       repo,
 		hostClient: hostClient,
@@ -86,6 +86,7 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 		ExpiryYear:   expYear,
 		CurrencyCode: req.CurrencyCode,
 		Amount:       totalAmount,
+		Products:     txProducts,
 	}
 
 	hostResp, err := s.hostClient.AuthorizeSale(ctx, userUUID, hostReq)
@@ -117,6 +118,9 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 		HostType:              hostResp.HostType,
 		OriginalTransactionID: nil,
 		RequestPayload:        hostResp.RawRequest,
+		ResponsePayload:       hostResp.RawResponse,
+		ResponseCode:          hostResp.ResponseCode,
+		AuthCode:              hostResp.AuthCode,
 	}
 
 	if err := s.repo.CreateSale(ctx, trx, txProducts); err != nil {
@@ -179,6 +183,12 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
 	}
 
+	var rcPtr *string
+	if hostResp.ResponseCode != nil && strings.TrimSpace(*hostResp.ResponseCode) != "" {
+		rc := *hostResp.ResponseCode
+		rcPtr = &rc
+	}
+
 	voidTx := &models.Transaction{
 		UserID: orig.UserID,
 
@@ -201,6 +211,9 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 		HostType:              hostResp.HostType,
 		OriginalTransactionID: &orig.ID,
 		RequestPayload:        hostResp.RawRequest,
+		ResponsePayload:       hostResp.RawResponse,
+		ResponseCode:          rcPtr,
+		AuthCode:              hostResp.AuthCode,
 	}
 
 	if err := s.repo.VoidTransaction(ctx, voidTx); err != nil {

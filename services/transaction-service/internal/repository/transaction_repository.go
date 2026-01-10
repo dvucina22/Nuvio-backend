@@ -54,13 +54,16 @@ func (r *transactionRepo) CreateSale(ctx context.Context, trx *models.Transactio
 			merchant_mid,
 			host_type,
 			original_transaction_id,
-			request_payload
+			request_payload,
+			response_payload,
+			response_code,
+			auth_code
 		)
 		VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
-			$16, $17, $18, $19, $20
+			$16, $17, $18, $19, $20, $21, $22, $23
 		)
 		RETURNING id, created_at, updated_at
 	`
@@ -102,6 +105,9 @@ func (r *transactionRepo) CreateSale(ctx context.Context, trx *models.Transactio
 		trx.HostType,
 		originalTxID,
 		trx.RequestPayload,
+		trx.ResponsePayload,
+		trx.ResponseCode,
+		trx.AuthCode,
 	).Scan(
 		&trx.ID,
 		&trx.CreatedAt,
@@ -344,16 +350,6 @@ func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Tr
 	}
 	originalTxID := *voidTx.OriginalTransactionID
 
-	updateQ := `
-        UPDATE transaction.transactions
-        SET status = 'VOIDED',
-            updated_at = NOW()
-        WHERE id = $1
-    `
-	if _, err := dbTx.ExecContext(ctx, updateQ, originalTxID); err != nil {
-		return fmt.Errorf("failed to update original transaction: %w", err)
-	}
-
 	insertQ := `
         INSERT INTO transaction.transactions (
             user_id,
@@ -375,7 +371,10 @@ func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Tr
             merchant_mid,
             host_type,
             original_transaction_id,
-            request_payload
+            request_payload,
+			response_payload,
+			response_code,
+			auth_code
         )
         VALUES (
             $1,$2,$3,$4,
@@ -383,7 +382,7 @@ func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Tr
             $10,$11,
             $12,$13,$14,$15,
             $16,$17,$18,
-            $19,$20
+            $19,$20, $21, $22, $23
         )
         RETURNING id, created_at, updated_at
     `
@@ -411,6 +410,9 @@ func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Tr
 		voidTx.HostType,
 		originalTxID,
 		voidTx.RequestPayload,
+		voidTx.ResponsePayload,
+		voidTx.ResponseCode,
+		voidTx.AuthCode,
 	).Scan(
 		&voidTx.ID,
 		&voidTx.CreatedAt,

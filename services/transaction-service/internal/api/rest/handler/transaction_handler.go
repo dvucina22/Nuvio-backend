@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/transaction-service/internal/api/rest/middleware"
+	"github.com/transaction-service/internal/client/host"
 	"github.com/transaction-service/internal/service"
 	"github.com/transaction-service/pkg/models"
 	"github.com/transaction-service/pkg/response"
@@ -40,7 +41,10 @@ func (h *TransactionHandler) CreateSale(w http.ResponseWriter, r *http.Request) 
 
 	req.UserID = parsedUserID
 
-	res, err := h.svc.CreateSale(r.Context(), userID, &req)
+	authHeader := r.Header.Get("Authorization")
+	ctx := host.WithAuthHeader(r.Context(), authHeader)
+
+	res, err := h.svc.CreateSale(ctx, userID, &req)
 	if err != nil {
 		statusCode := h.getStatusCode(err)
 		response.JSON(w, statusCode, map[string]string{"error": err.Error()})
@@ -74,7 +78,10 @@ func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
 		TransactionID: txID,
 	}
 
-	voidTx, err := h.svc.VoidSale(r.Context(), req)
+	authHeader := r.Header.Get("Authorization")
+	ctx := host.WithAuthHeader(r.Context(), authHeader)
+
+	voidTx, err := h.svc.VoidSale(ctx, req)
 	if err != nil {
 		statusCode := h.getStatusCode(err)
 		response.JSON(w, statusCode, map[string]string{"error": err.Error()})

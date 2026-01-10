@@ -1,17 +1,13 @@
 package models
 
-import (
-	"context"
-
-	"github.com/google/uuid"
-)
-
 type HostSaleRequest struct {
 	CardNumber   string
 	ExpiryMonth  int
 	ExpiryYear   int
 	CurrencyCode string
 	Amount       int64
+
+	Products []*TransactionProduct
 }
 
 type HostSaleResponse struct {
@@ -26,8 +22,7 @@ type HostSaleResponse struct {
 	CardFirstDigit  string
 	RawRequest      []byte
 	RawResponse     []byte
-}
 
-type HostClient interface {
-	AuthorizeSale(ctx context.Context, userID uuid.UUID, req *HostSaleRequest) (*HostSaleResponse, error)
+	ResponseCode *string
+	AuthCode     *string
 }
