@@ -200,3 +200,131 @@ func getID(v any) any {
 	}
 	return nil
 }
+
+func (h *TransactionHandler) GetUserTransactions(w http.ResponseWriter, r *http.Request) {
+    claims := middleware.GetUserClaims(r.Context())
+    if claims == nil {
+        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+        return
+    }
+    
+    userID := claims.UserID
+    
+    page := 1
+    pageSize := 20
+    
+    if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+        if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+            page = p
+        }
+    }
+    
+    if sizeStr := r.URL.Query().Get("pageSize"); sizeStr != "" {
+        if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 && s <= 100 {
+            pageSize = s
+        }
+    }
+    
+    res, err := h.svc.GetUserTransactions(r.Context(), userID, page, pageSize)
+    if err != nil {
+        apiErr := models.MapError(err)
+        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+        return
+    }
+    
+    models.Ok(w, http.StatusOK, res, nil)
+}
+
+func (h *TransactionHandler) GetUserTransactionDetail(w http.ResponseWriter, r *http.Request) {
+    claims := middleware.GetUserClaims(r.Context())
+    if claims == nil {
+        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+        return
+    }
+    
+    userID := claims.UserID
+    
+    vars := mux.Vars(r)
+    idStr := vars["transaction_id"]
+    txID, err := strconv.ParseInt(idStr, 10, 64)
+    if err != nil {
+        models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
+        return
+    }
+    
+    detail, err := h.svc.GetUserTransactionDetail(r.Context(), userID, txID)
+    if err != nil {
+        apiErr := models.MapError(err)
+        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+        return
+    }
+    
+    models.Ok(w, http.StatusOK, detail, nil)
+}
+
+func (h *TransactionHandler) GetAdminTransactions(w http.ResponseWriter, r *http.Request) {
+    claims := middleware.GetUserClaims(r.Context())
+    if claims == nil {
+        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+        return
+    }
+    
+    if !isAdmin(claims) {
+        models.Fail(w, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
+        return
+    }
+    
+    page := 1
+    pageSize := 20
+    
+    if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+        if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+            page = p
+        }
+    }
+    
+    if sizeStr := r.URL.Query().Get("pageSize"); sizeStr != "" {
+        if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 && s <= 100 {
+            pageSize = s
+        }
+    }
+    
+    res, err := h.svc.GetAllTransactions(r.Context(), page, pageSize)
+    if err != nil {
+        apiErr := models.MapError(err)
+        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+        return
+    }
+    
+    models.Ok(w, http.StatusOK, res, nil)
+}
+
+func (h *TransactionHandler) GetAdminTransactionDetail(w http.ResponseWriter, r *http.Request) {
+    claims := middleware.GetUserClaims(r.Context())
+    if claims == nil {
+        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+        return
+    }
+    
+    if !isAdmin(claims) {
+        models.Fail(w, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
+        return
+    }
+    
+    vars := mux.Vars(r)
+    idStr := vars["transaction_id"]
+    txID, err := strconv.ParseInt(idStr, 10, 64)
+    if err != nil {
+        models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
+        return
+    }
+    
+    detail, err := h.svc.GetAdminTransactionDetail(r.Context(), txID)
+    if err != nil {
+        apiErr := models.MapError(err)
+        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+        return
+    }
+    
+    models.Ok(w, http.StatusOK, detail, nil)
+}

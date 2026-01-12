@@ -31,8 +31,16 @@ func NewRouter(
 	protected.HandleFunc("/cards/{card_id}", cardHandler.DeleteCard).Methods("DELETE")
 	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT")
 
+	protected.HandleFunc("/admin/transactions", transactionHandler.GetAdminTransactions).Methods("GET")
+	protected.HandleFunc("/admin/transactions/{transaction_id}", transactionHandler.GetAdminTransactionDetail).Methods("GET")
+
+	protected.HandleFunc("/history", transactionHandler.GetUserTransactions).Methods("GET")
+	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetUserTransactionDetail).Methods("GET")
+
 	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST")
 	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST")
+
 	protected.HandleFunc("/{transaction_id}", transactionHandler.GetTransaction).Methods("GET")
+
 	return r
 }

@@ -329,3 +329,89 @@ func maskPAN(pan string) string {
 	}
 	return string(digits)
 }
+
+func (s *TransactionService) GetUserTransactions(ctx context.Context, userID string, page, pageSize int) (*models.TransactionListResponse, error) {
+    if page < 1 {
+        page = 1
+    }
+    if pageSize < 1 || pageSize > 100 {
+        pageSize = 20
+    }
+    
+    userUUID, err := uuid.Parse(userID)
+    if err != nil {
+        return nil, models.ErrInvalidUserId
+    }
+    
+    offset := (page - 1) * pageSize
+    transactions, total, err := s.repo.GetUserTransactions(ctx, userUUID, pageSize, offset)
+    if err != nil {
+        return nil, models.ErrDatabaseOperation
+    }
+    
+    return &models.TransactionListResponse{
+        Transactions: transactions,
+        Total:        total,
+        Page:         page,
+        PageSize:     pageSize,
+    }, nil
+}
+
+func (s *TransactionService) GetUserTransactionDetail(ctx context.Context, userID string, txID int64) (*models.TransactionDetail, error) {
+    if txID <= 0 {
+        return nil, models.ErrMissingFields
+    }
+    
+    userUUID, err := uuid.Parse(userID)
+    if err != nil {
+        return nil, models.ErrInvalidUserId
+    }
+    
+    detail, err := s.repo.GetUserTransactionDetail(ctx, userUUID, txID)
+    if err != nil {
+        return nil, models.ErrDatabaseOperation
+    }
+    if detail == nil {
+        return nil, models.ErrTransactionNotFound
+    }
+    
+    return detail, nil
+}
+
+func (s *TransactionService) GetAllTransactions(ctx context.Context, page, pageSize int) (*models.AdminTransactionListResponse, error) {
+    if page < 1 {
+        page = 1
+    }
+    if pageSize < 1 || pageSize > 100 {
+        pageSize = 20
+    }
+    
+    offset := (page - 1) * pageSize
+    transactions, total, err := s.repo.GetAllTransactions(ctx, pageSize, offset)
+    if err != nil {
+        return nil, models.ErrDatabaseOperation
+    }
+    
+    return &models.AdminTransactionListResponse{
+        Transactions: transactions,
+        Total:        total,
+        Page:         page,
+        PageSize:     pageSize,
+    }, nil
+}
+
+func (s *TransactionService) GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error) {
+    if txID <= 0 {
+        return nil, models.ErrMissingFields
+    }
+    
+    detail, err := s.repo.GetAdminTransactionDetail(ctx, txID)
+    if err != nil {
+        return nil, models.ErrDatabaseOperation
+    }
+    if detail == nil {
+        return nil, models.ErrTransactionNotFound
+    }
+    
+    return detail, nil
+}
