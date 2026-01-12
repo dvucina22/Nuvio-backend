@@ -32,6 +32,10 @@ func ValidateSaleRequest(msg *iso8583.Message) error {
 		return fmt.Errorf("invalid pan")
 	}
 
+	if isBlacklistedPAN(pan) {
+		return errBlacklistedPAN()
+	}
+
 	if !isAllDigitsLen(msg.Fields[4], 12) {
 		return fmt.Errorf("invalid amount")
 	}

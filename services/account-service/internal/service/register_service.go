@@ -43,15 +43,10 @@ func (s *RegisterService) Register(ctx context.Context, req *models.RegisterRequ
 		return nil, errors.New("email already exists")
 	}
 
-	hashedPassword, err := s.password_helper.HashPassword(req.Password)
-	if err != nil {
-		return nil, err
-	}
-
 	user := &models.User{
 		Email:        req.Email,
 		PhoneNumber:  req.PhoneNumber,
-		PasswordHash: hashedPassword,
+		PasswordHash: req.Password,
 		Gender:       req.Gender,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,

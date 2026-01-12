@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -56,6 +57,15 @@ func (h *TransactionHandler) CreateSale(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if rc, ok := getResponseCode(res); ok && rc == "30" {
+		models.Fail(w, http.StatusUnprocessableEntity, "HOST_DECLINED", "transaction declined by host", map[string]any{
+			"responseCode": rc,
+			"status":       getStatus(res),
+			"id":           getID(res),
+		})
+		return
+	}
+
 	models.Ok(w, http.StatusCreated, res, nil)
 }
 
@@ -90,6 +100,15 @@ func (h *TransactionHandler) VoidSale(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		apiErr := models.MapError(err)
 		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+		return
+	}
+
+	if rc, ok := getResponseCode(res); ok && rc == "30" {
+		models.Fail(w, http.StatusUnprocessableEntity, "HOST_DECLINED", "void declined by host", map[string]any{
+			"responseCode": rc,
+			"status":       getStatus(res),
+			"id":           getID(res),
+		})
 		return
 	}
 
@@ -138,4 +157,46 @@ func isAdmin(claims *utils.UserClaims) bool {
 	}
 
 	return false
+}
+
+func getResponseCode(v any) (string, bool) {
+	switch x := v.(type) {
+	case *models.SaleCreateResponse:
+		return strings.TrimSpace(x.ResponseCode), true
+
+	case *models.VoidCreateResponse:
+		return strings.TrimSpace(x.ResponseCode), true
+
+	case *models.Transaction:
+		if x.ResponseCode == nil {
+			return "", false
+		}
+		return strings.TrimSpace(*x.ResponseCode), true
+	}
+
+	return "", false
+}
+
+func getStatus(v any) any {
+	switch x := v.(type) {
+	case *models.SaleCreateResponse:
+		return x.Status
+	case *models.VoidCreateResponse:
+		return x.Status
+	case *models.Transaction:
+		return x.Status
+	}
+	return nil
+}
+
+func getID(v any) any {
+	switch x := v.(type) {
+	case *models.SaleCreateResponse:
+		return x.ID
+	case *models.VoidCreateResponse:
+		return x.ID
+	case *models.Transaction:
+		return x.ID
+	}
+	return nil
 }

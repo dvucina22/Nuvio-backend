@@ -8,7 +8,6 @@ import (
 	"github.com/account-service/internal/repository"
 	"github.com/account-service/pkg/models"
 	"github.com/account-service/pkg/utils"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginService struct {
@@ -39,7 +38,7 @@ func (s *LoginService) Login(ctx context.Context, req models.LoginRequest) (*mod
 		return nil, errors.New("account is deactivated")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+	if user.PasswordHash != req.Password {
 		return nil, errors.New("invalid credentials")
 	}
 
