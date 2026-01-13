@@ -171,3 +171,39 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusCreated, map[string]string{"message": "created new product"})
 }
+
+func (h *ProductHandler) GetPrimaryImages(w http.ResponseWriter, r *http.Request) {
+	var req products.ProductImageRequest
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+		return
+	}
+	
+	if len(req.ProductIds) == 0 {
+		response.JSON(w, http.StatusBadRequest, map[string]string{
+			"error": "productIds cannot be empty",
+		})
+		return
+	}
+	
+	images, err := h.service.GetPrimaryImages(r.Context(), req.ProductIds)
+	if err != nil {
+		switch {
+		case errors.Is(err, models.ErrInvalidFilter):
+			response.JSON(w, http.StatusBadRequest, map[string]string{
+				"error": "too many product IDs (max 100)",
+			})
+			return
+		default:
+			response.JSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "failed to get images",
+			})
+			return
+		}
+	}
+	
+	response.JSON(w, http.StatusOK, images)
+}

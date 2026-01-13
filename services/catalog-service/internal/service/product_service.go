@@ -110,3 +110,32 @@ func (s *ProductService) CreateProduct(product *products.CreateProduct) error {
 
 	return s.repo.CreateProduct(product)
 }
+
+func (s *ProductService) GetPrimaryImages(ctx context.Context, productIds []int64) ([]products.ProductImageResponse, error) {
+	if len(productIds) == 0 {
+		return []products.ProductImageResponse{}, nil
+	}
+	
+	if len(productIds) > 100 {
+		return nil, models.ErrInvalidFilter
+	}
+	
+	imagesMap, err := s.repo.GetPrimaryImages(ctx, productIds)
+	if err != nil {
+		return nil, err
+	}
+	
+	result := make([]products.ProductImageResponse, 0, len(productIds))
+	
+	for _, productID := range productIds {
+		imageURL, exists := imagesMap[productID]
+		if exists {
+			result = append(result, products.ProductImageResponse{
+				ProductID: productID,
+				ImageURL:  imageURL,
+			})
+		}
+	}
+	
+	return result, nil
+}

@@ -18,6 +18,7 @@ type ProductRepository interface {
 	DeleteProductByID(productID int) error
 	UpdateProductByID(productID int, product *products.UpdateProduct) error
 	CreateProduct(product *products.CreateProduct) error
+	GetPrimaryImages(ctx context.Context, productIds []int64) (map[int64]string, error)
 }
 type productRepo struct {
 	db *sql.DB
@@ -543,6 +544,44 @@ func (r *productRepo) CreateProduct(product *products.CreateProduct) error {
 	}
 
 	return nil
+}
+
+func (r *productRepo) GetPrimaryImages(ctx context.Context, productIds []int64) (map[int64]string, error) {
+	if len(productIds) == 0 {
+		return make(map[int64]string), nil
+	}
+	
+	query := `
+		SELECT pi.product_id, pi.url
+		FROM catalog.product_images pi
+		WHERE pi.product_id = ANY($1)
+		AND pi.is_primary = TRUE
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(productIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	result := make(map[int64]string)
+	
+	for rows.Next() {
+		var productID int64
+		var imageURL string
+		
+		if err := rows.Scan(&productID, &imageURL); err != nil {
+			return nil, err
+		}
+		
+		result[productID] = imageURL
+	}
+	
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	
+	return result, nil
 }
 
 func toNullString(v *string) any {

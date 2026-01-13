@@ -330,31 +330,67 @@ func maskPAN(pan string) string {
 	return string(digits)
 }
 
-func (s *TransactionService) GetUserTransactions(ctx context.Context, userID string, page, pageSize int) (*models.TransactionListResponse, error) {
-    if page < 1 {
-        page = 1
-    }
-    if pageSize < 1 || pageSize > 100 {
-        pageSize = 20
-    }
-    
-    userUUID, err := uuid.Parse(userID)
-    if err != nil {
-        return nil, models.ErrInvalidUserId
-    }
-    
-    offset := (page - 1) * pageSize
-    transactions, total, err := s.repo.GetUserTransactions(ctx, userUUID, pageSize, offset)
-    if err != nil {
-        return nil, models.ErrDatabaseOperation
-    }
-    
-    return &models.TransactionListResponse{
-        Transactions: transactions,
-        Total:        total,
-        Page:         page,
-        PageSize:     pageSize,
-    }, nil
+func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID string, filter *models.TransactionFilter, isAdmin bool) (*models.TransactionListResponse, error) {
+	if err := filter.Validate(); err != nil {
+		return nil, err
+	}
+	
+	if isAdmin {
+		adminFilter := &models.AdminTransactionFilter{
+			Search:          filter.Search,
+			DateFrom:        filter.DateFrom,
+			DateTo:          filter.DateTo,
+			Statuses:        filter.Statuses,
+			Types:           filter.Types,
+			AmountMin:       filter.AmountMin,
+			AmountMax:       filter.AmountMax,
+			ProductCountMin: filter.ProductCountMin,
+			ProductCountMax: filter.ProductCountMax,
+			UserID:          filter.UserID,
+			Page:            filter.Page,
+			PageSize:        filter.PageSize,
+		}
+		
+		adminTransactions, total, err := s.repo.GetFilteredAdminTransactions(ctx, adminFilter)
+		if err != nil {
+			return nil, models.ErrDatabaseOperation
+		}
+		
+		userTransactions := make([]*models.TransactionListItem, len(adminTransactions))
+		for i, tx := range adminTransactions {
+			userTransactions[i] = &models.TransactionListItem{
+				ID:           tx.ID,
+				Status:       tx.Status,
+				Amount:       tx.Amount,
+				CurrencyCode: tx.CurrencyCode,
+				PANMasked:    tx.PANMasked,
+				ProductCount: tx.ProductCount,
+				ProductIds:   tx.ProductIds,
+				CreatedAt:    tx.CreatedAt,
+			}
+		}
+		
+		return &models.TransactionListResponse{
+			Transactions: userTransactions,
+			Total:        total,
+			Page:         adminFilter.Page,
+			PageSize:     adminFilter.PageSize,
+		}, nil
+	}
+	
+	filter.UserID = &userID
+	
+	transactions, total, err := s.repo.GetFilteredUserTransactions(ctx, filter)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+	
+	return &models.TransactionListResponse{
+		Transactions: transactions,
+		Total:        total,
+		Page:         filter.Page,
+		PageSize:     filter.PageSize,
+	}, nil
 }
 
 func (s *TransactionService) GetUserTransactionDetail(ctx context.Context, userID string, txID int64) (*models.TransactionDetail, error) {
@@ -376,28 +412,6 @@ func (s *TransactionService) GetUserTransactionDetail(ctx context.Context, userI
     }
     
     return detail, nil
-}
-
-func (s *TransactionService) GetAllTransactions(ctx context.Context, page, pageSize int) (*models.AdminTransactionListResponse, error) {
-    if page < 1 {
-        page = 1
-    }
-    if pageSize < 1 || pageSize > 100 {
-        pageSize = 20
-    }
-    
-    offset := (page - 1) * pageSize
-    transactions, total, err := s.repo.GetAllTransactions(ctx, pageSize, offset)
-    if err != nil {
-        return nil, models.ErrDatabaseOperation
-    }
-    
-    return &models.AdminTransactionListResponse{
-        Transactions: transactions,
-        Total:        total,
-        Page:         page,
-        PageSize:     pageSize,
-    }, nil
 }
 
 func (s *TransactionService) GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error) {

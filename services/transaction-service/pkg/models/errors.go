@@ -24,6 +24,7 @@ var (
 	ErrInvalidTransactionType  = errors.New("invalid transaction type")
 	ErrInvalidTransactionState = errors.New("invalid transaction state")
 	ErrVoidAlreadyExists       = errors.New("void already exists for this transaction")
+	ErrInvalidFilter           = errors.New("invalid filter parameters")
 )
 
 type ApiErr struct {
@@ -55,7 +56,8 @@ func MapError(err error) ApiErr {
 		errors.Is(err, ErrInvalidProducts),
 		errors.Is(err, ErrInvalidAmount),
 		errors.Is(err, ErrInvalidTransactionType),
-		errors.Is(err, ErrInvalidTransactionState):
+		errors.Is(err, ErrInvalidTransactionState),
+		errors.Is(err, ErrInvalidFilter):
 		return ApiErr{Status: http.StatusBadRequest, Code: "VALIDATION_ERROR", Message: err.Error()}
 
 	case errors.Is(err, ErrEncryptionFailed):

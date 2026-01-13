@@ -52,6 +52,7 @@ type TransactionListItem struct {
     CurrencyCode string    `json:"currencyCode"`
     PANMasked    string    `json:"panMasked"`
     ProductCount int       `json:"productCount"`
+    ProductIds   []int64   `json:"productIds"`
     CreatedAt    time.Time `json:"createdAt"`
 }
 
@@ -98,6 +99,7 @@ type AdminTransactionListItem struct {
     AuthCode              *string    `json:"authCode,omitempty"`
     OriginalTransactionID *int64     `json:"originalTransactionId,omitempty"`
     ProductCount          int        `json:"productCount"`
+    ProductIds            []int64    `json:"productIds"`
     CreatedAt             time.Time  `json:"createdAt"`
 }
 

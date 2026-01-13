@@ -37,6 +37,7 @@ func NewRouter(
 
 	optionalProtected.HandleFunc("/products", productHandler.CreateProduct).Methods("POST")
 	optionalProtected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
+	optionalProtected.HandleFunc("/products/images", productHandler.GetPrimaryImages).Methods("POST")
 	optionalProtected.HandleFunc("/products/{id}", productHandler.GetProductByID).Methods("GET")
 	optionalProtected.HandleFunc("/products/{id}", productHandler.UpdateProductByID).Methods("PUT")
 	optionalProtected.HandleFunc("/products/{id}", productHandler.DeleteProductByID).Methods("DELETE")

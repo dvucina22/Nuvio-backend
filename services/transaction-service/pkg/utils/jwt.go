@@ -16,7 +16,9 @@ type UserClaims struct {
 	Email  string   `json:"email"`
 	Roles  []string `json:"roles"`
 	jwt.RegisteredClaims
-}
+} 
+
+type Roles []string
 
 func NewJWTManager(secretKey string, duration time.Duration) *JWTManager {
 	return &JWTManager{secretKey, duration}
@@ -34,4 +36,22 @@ func (m *JWTManager) Verify(tokenString string) (*UserClaims, error) {
 		return nil, err
 	}
 	return claims, nil
+}
+
+func (r Roles) IsAdmin() bool {
+	for _, role := range r {
+		if role == "admin" {
+			return true
+		}
+	}
+	return false
+}
+
+func (r Roles) IsAdminOrSeller() bool {
+	for _, role := range r {
+		if role == "admin" || role == "seller" {
+			return true
+		}
+	}
+	return false
 }

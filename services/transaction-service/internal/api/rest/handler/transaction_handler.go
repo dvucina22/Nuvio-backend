@@ -201,38 +201,38 @@ func getID(v any) any {
 	return nil
 }
 
-func (h *TransactionHandler) GetUserTransactions(w http.ResponseWriter, r *http.Request) {
-    claims := middleware.GetUserClaims(r.Context())
-    if claims == nil {
-        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
-        return
-    }
-    
-    userID := claims.UserID
-    
-    page := 1
-    pageSize := 20
-    
-    if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-        if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-            page = p
-        }
-    }
-    
-    if sizeStr := r.URL.Query().Get("pageSize"); sizeStr != "" {
-        if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 && s <= 100 {
-            pageSize = s
-        }
-    }
-    
-    res, err := h.svc.GetUserTransactions(r.Context(), userID, page, pageSize)
-    if err != nil {
-        apiErr := models.MapError(err)
-        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
-        return
-    }
-    
-    models.Ok(w, http.StatusOK, res, nil)
+func (h *TransactionHandler) GetFilteredTransactions(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	if claims == nil {
+		models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+		return
+	}
+	
+	var filter models.TransactionFilter
+	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
+		models.Fail(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body", map[string]any{
+			"reason": err.Error(),
+		})
+		return
+	}
+	
+	isAdmin := utils.Roles(claims.Roles).IsAdmin()
+	
+	var userID string
+	if isAdmin && filter.UserID != nil && *filter.UserID != "" {
+		userID = *filter.UserID
+	} else {
+		userID = claims.UserID
+	}
+	
+	res, err := h.svc.GetFilteredTransactions(r.Context(), userID, &filter, isAdmin)
+	if err != nil {
+		apiErr := models.MapError(err)
+		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+		return
+	}
+	
+	models.Ok(w, http.StatusOK, res, nil)
 }
 
 func (h *TransactionHandler) GetUserTransactionDetail(w http.ResponseWriter, r *http.Request) {
@@ -260,43 +260,6 @@ func (h *TransactionHandler) GetUserTransactionDetail(w http.ResponseWriter, r *
     }
     
     models.Ok(w, http.StatusOK, detail, nil)
-}
-
-func (h *TransactionHandler) GetAdminTransactions(w http.ResponseWriter, r *http.Request) {
-    claims := middleware.GetUserClaims(r.Context())
-    if claims == nil {
-        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
-        return
-    }
-    
-    if !isAdmin(claims) {
-        models.Fail(w, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-        return
-    }
-    
-    page := 1
-    pageSize := 20
-    
-    if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-        if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
-            page = p
-        }
-    }
-    
-    if sizeStr := r.URL.Query().Get("pageSize"); sizeStr != "" {
-        if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 && s <= 100 {
-            pageSize = s
-        }
-    }
-    
-    res, err := h.svc.GetAllTransactions(r.Context(), page, pageSize)
-    if err != nil {
-        apiErr := models.MapError(err)
-        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
-        return
-    }
-    
-    models.Ok(w, http.StatusOK, res, nil)
 }
 
 func (h *TransactionHandler) GetAdminTransactionDetail(w http.ResponseWriter, r *http.Request) {
