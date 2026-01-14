@@ -393,39 +393,34 @@ func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID
 	}, nil
 }
 
-func (s *TransactionService) GetUserTransactionDetail(ctx context.Context, userID string, txID int64) (*models.TransactionDetail, error) {
-    if txID <= 0 {
-        return nil, models.ErrMissingFields
-    }
-    
-    userUUID, err := uuid.Parse(userID)
-    if err != nil {
-        return nil, models.ErrInvalidUserId
-    }
-    
-    detail, err := s.repo.GetUserTransactionDetail(ctx, userUUID, txID)
-    if err != nil {
-        return nil, models.ErrDatabaseOperation
-    }
-    if detail == nil {
-        return nil, models.ErrTransactionNotFound
-    }
-    
-    return detail, nil
-}
-
-func (s *TransactionService) GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error) {
-    if txID <= 0 {
-        return nil, models.ErrMissingFields
-    }
-    
-    detail, err := s.repo.GetAdminTransactionDetail(ctx, txID)
-    if err != nil {
-        return nil, models.ErrDatabaseOperation
-    }
-    if detail == nil {
-        return nil, models.ErrTransactionNotFound
-    }
-    
-    return detail, nil
+func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID string, txID int64, isAdmin bool) (interface{}, error) {
+	if txID <= 0 {
+		return nil, models.ErrMissingFields
+	}
+	
+	if isAdmin {
+		detail, err := s.repo.GetAdminTransactionDetail(ctx, txID)
+		if err != nil {
+			return nil, models.ErrDatabaseOperation
+		}
+		if detail == nil {
+			return nil, models.ErrTransactionNotFound
+		}
+		return detail, nil
+	}
+	
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, models.ErrInvalidUserId
+	}
+	
+	detail, err := s.repo.GetUserTransactionDetail(ctx, userUUID, txID)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+	if detail == nil {
+		return nil, models.ErrTransactionNotFound
+	}
+	
+	return detail, nil
 }

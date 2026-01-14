@@ -32,12 +32,10 @@ func NewRouter(
 	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT")
 
 	protected.HandleFunc("/history", transactionHandler.GetFilteredTransactions).Methods("POST")
-	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetUserTransactionDetail).Methods("GET")
+	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetTransactionDetail).Methods("GET")
 
 	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST")
 	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST")
-
-	protected.HandleFunc("/{transaction_id}", transactionHandler.GetTransaction).Methods("GET")
 
 	return r
 }

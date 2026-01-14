@@ -235,59 +235,29 @@ func (h *TransactionHandler) GetFilteredTransactions(w http.ResponseWriter, r *h
 	models.Ok(w, http.StatusOK, res, nil)
 }
 
-func (h *TransactionHandler) GetUserTransactionDetail(w http.ResponseWriter, r *http.Request) {
-    claims := middleware.GetUserClaims(r.Context())
-    if claims == nil {
-        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
-        return
-    }
-    
-    userID := claims.UserID
-    
-    vars := mux.Vars(r)
-    idStr := vars["transaction_id"]
-    txID, err := strconv.ParseInt(idStr, 10, 64)
-    if err != nil {
-        models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
-        return
-    }
-    
-    detail, err := h.svc.GetUserTransactionDetail(r.Context(), userID, txID)
-    if err != nil {
-        apiErr := models.MapError(err)
-        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
-        return
-    }
-    
-    models.Ok(w, http.StatusOK, detail, nil)
-}
-
-func (h *TransactionHandler) GetAdminTransactionDetail(w http.ResponseWriter, r *http.Request) {
-    claims := middleware.GetUserClaims(r.Context())
-    if claims == nil {
-        models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
-        return
-    }
-    
-    if !isAdmin(claims) {
-        models.Fail(w, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-        return
-    }
-    
-    vars := mux.Vars(r)
-    idStr := vars["transaction_id"]
-    txID, err := strconv.ParseInt(idStr, 10, 64)
-    if err != nil {
-        models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
-        return
-    }
-    
-    detail, err := h.svc.GetAdminTransactionDetail(r.Context(), txID)
-    if err != nil {
-        apiErr := models.MapError(err)
-        models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
-        return
-    }
-    
-    models.Ok(w, http.StatusOK, detail, nil)
+func (h *TransactionHandler) GetTransactionDetail(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	if claims == nil {
+		models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+		return
+	}
+	
+	vars := mux.Vars(r)
+	idStr := vars["transaction_id"]
+	txID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
+		return
+	}
+	
+	isAdmin := utils.Roles(claims.Roles).IsAdmin()
+	
+	detail, err := h.svc.GetTransactionDetails(r.Context(), claims.UserID, txID, isAdmin)
+	if err != nil {
+		apiErr := models.MapError(err)
+		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+		return
+	}
+	
+	models.Ok(w, http.StatusOK, detail, nil)
 }
