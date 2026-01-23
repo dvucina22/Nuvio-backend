@@ -27,7 +27,8 @@ type Config struct {
 	JWTExpiry     int
 	EncryptionKey []byte
 
-	IsoComBaseURL string
+	IsoComBaseURL  string
+	RestComBaseURL string
 }
 
 func Load() *Config {
@@ -40,7 +41,8 @@ func Load() *Config {
 		JWTExpiry:     604800,
 		EncryptionKey: loadEncryptionKey(),
 
-		IsoComBaseURL: getEnv("ISO_COM_BASE_URL", ""),
+		IsoComBaseURL:  getEnv("ISO_COM_BASE_URL", ""),
+		RestComBaseURL: getEnv("REST_COM_BASE_URL", ""),
 	}
 
 	if cfg.Port == "" {
@@ -55,6 +57,9 @@ func Load() *Config {
 
 	if cfg.IsoComBaseURL == "" {
 		log.Fatal("ISO_COM_BASE_URL not set in .env")
+	}
+	if cfg.RestComBaseURL == "" {
+		log.Fatal("REST_COM_BASE_URL not set in .env")
 	}
 
 	return cfg

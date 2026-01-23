@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 	"unicode"
@@ -16,10 +18,10 @@ import (
 type TransactionService struct {
 	repo       repository.TransactionRepository
 	cardSvc    *CardService
-	hostClient host.IsoComClient
+	hostClient host.ComClient
 }
 
-func NewTransactionService(repo repository.TransactionRepository, hostClient host.IsoComClient, cardSvc *CardService) *TransactionService {
+func NewTransactionService(repo repository.TransactionRepository, hostClient host.ComClient, cardSvc *CardService) *TransactionService {
 	return &TransactionService{
 		repo:       repo,
 		hostClient: hostClient,
@@ -92,6 +94,13 @@ func (s *TransactionService) CreateSale(ctx context.Context, userID string, req 
 	hostResp, err := s.hostClient.AuthorizeSale(ctx, userUUID, hostReq)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
+	}
+
+	jsonData, err := json.MarshalIndent(hostResp, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal hostResp to JSON: %v", err)
+	} else {
+		log.Printf("Com client response:\n%s", jsonData)
 	}
 
 	panMasked := maskPAN(cardPAN)
@@ -169,6 +178,13 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 	hostResp, err := s.hostClient.AuthorizeVoid(ctx, orig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", models.ErrDatabaseOperation, err)
+	}
+
+	jsonData, err := json.MarshalIndent(hostResp, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal hostResp to JSON: %v", err)
+	} else {
+		log.Printf("Com client response:\n%s", jsonData)
 	}
 
 	var rcPtr *string
@@ -334,7 +350,7 @@ func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID
 	if err := filter.Validate(); err != nil {
 		return nil, err
 	}
-	
+
 	if isAdmin {
 		adminFilter := &models.AdminTransactionFilter{
 			Search:          filter.Search,
@@ -350,12 +366,12 @@ func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID
 			Page:            filter.Page,
 			PageSize:        filter.PageSize,
 		}
-		
+
 		adminTransactions, total, err := s.repo.GetFilteredAdminTransactions(ctx, adminFilter)
 		if err != nil {
 			return nil, models.ErrDatabaseOperation
 		}
-		
+
 		userTransactions := make([]*models.TransactionListItem, len(adminTransactions))
 		for i, tx := range adminTransactions {
 			userTransactions[i] = &models.TransactionListItem{
@@ -369,7 +385,7 @@ func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID
 				CreatedAt:    tx.CreatedAt,
 			}
 		}
-		
+
 		return &models.TransactionListResponse{
 			Transactions: userTransactions,
 			Total:        total,
@@ -377,14 +393,14 @@ func (s *TransactionService) GetFilteredTransactions(ctx context.Context, userID
 			PageSize:     adminFilter.PageSize,
 		}, nil
 	}
-	
+
 	filter.UserID = &userID
-	
+
 	transactions, total, err := s.repo.GetFilteredUserTransactions(ctx, filter)
 	if err != nil {
 		return nil, models.ErrDatabaseOperation
 	}
-	
+
 	return &models.TransactionListResponse{
 		Transactions: transactions,
 		Total:        total,
@@ -397,7 +413,7 @@ func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID s
 	if txID <= 0 {
 		return nil, models.ErrMissingFields
 	}
-	
+
 	if isAdmin {
 		detail, err := s.repo.GetAdminTransactionDetail(ctx, txID)
 		if err != nil {
@@ -408,12 +424,12 @@ func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID s
 		}
 		return detail, nil
 	}
-	
+
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, models.ErrInvalidUserId
 	}
-	
+
 	detail, err := s.repo.GetUserTransactionDetail(ctx, userUUID, txID)
 	if err != nil {
 		return nil, models.ErrDatabaseOperation
@@ -421,6 +437,6 @@ func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID s
 	if detail == nil {
 		return nil, models.ErrTransactionNotFound
 	}
-	
+
 	return detail, nil
 }

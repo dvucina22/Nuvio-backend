@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,15 +23,17 @@ type HostClient interface {
 
 type TokenProvider func(ctx context.Context) (string, error)
 
-type IsoComClient struct {
-	baseURL       string
+type ComClient struct {
+	isoBaseURL    string
+	restBaseURL   string
 	httpClient    *http.Client
 	tokenProvider TokenProvider
 }
 
-func NewIsoComClient(baseURL string, tokenProvider TokenProvider) *IsoComClient {
-	return &IsoComClient{
-		baseURL: strings.TrimRight(baseURL, "/"),
+func NewComClient(isoBaseURL string, restBaseURL string, tokenProvider TokenProvider) *ComClient {
+	return &ComClient{
+		isoBaseURL:  strings.TrimRight(isoBaseURL, "/"),
+		restBaseURL: strings.TrimRight(restBaseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: 12 * time.Second,
 		},
@@ -38,7 +41,7 @@ func NewIsoComClient(baseURL string, tokenProvider TokenProvider) *IsoComClient 
 	}
 }
 
-func (c *IsoComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req *models.HostSaleRequest) (*models.HostSaleResponse, error) {
+func (c *ComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req *models.HostSaleRequest) (*models.HostSaleResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("missing request")
 	}
@@ -93,10 +96,29 @@ func (c *IsoComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req 
 		Items:        items,
 	}
 
+	cardFirstDigit := -1
+	for _, r := range req.CardNumber {
+		if r >= '0' && r <= '9' {
+			cardFirstDigit = int(r - '0')
+			break
+		}
+	}
+
+	if cardFirstDigit == -1 {
+		return nil, fmt.Errorf("card number contains no digits")
+	}
+
+	baseURL := c.restBaseURL
+	if cardFirstDigit%2 == 1 {
+		baseURL = c.isoBaseURL
+	}
+
 	var out models.AuthorizeSaleRespDTO
-	if err := c.post(ctx, "/api/bank-comm/authorize/sale", in, &out); err != nil {
+	if err := c.post(ctx, baseURL+"/api/bank-comm/authorize/sale", in, &out); err != nil {
 		return nil, err
 	}
+
+	cardFirstDigitStr := strconv.Itoa(cardFirstDigit)
 
 	rawReq, err := decodeHexBytes(out.RawRequestHex)
 	if err != nil {
@@ -106,14 +128,6 @@ func (c *IsoComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req 
 	rawResp, err := decodeHexBytes(out.RawResponseHex)
 	if err != nil {
 		return nil, fmt.Errorf("invalid RawResponseHex: %w", err)
-	}
-
-	cardFirstDigit := ""
-	for _, r := range req.CardNumber {
-		if r >= '0' && r <= '9' {
-			cardFirstDigit = string(r)
-			break
-		}
 	}
 
 	var authPtr *string
@@ -139,7 +153,7 @@ func (c *IsoComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req 
 		TransactionDate: now.Format("0102"),
 		RRN:             out.RRN,
 		Status:          out.Status,
-		CardFirstDigit:  cardFirstDigit,
+		CardFirstDigit:  cardFirstDigitStr,
 		RawRequest:      rawReq,
 		RawResponse:     rawResp,
 		ResponseCode:    rcPtr,
@@ -147,7 +161,7 @@ func (c *IsoComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req 
 	}, nil
 }
 
-func (c *IsoComClient) AuthorizeVoid(ctx context.Context, orig *models.Transaction) (*models.HostSaleResponse, error) {
+func (c *ComClient) AuthorizeVoid(ctx context.Context, orig *models.Transaction) (*models.HostSaleResponse, error) {
 	if orig == nil {
 		return nil, fmt.Errorf("original transaction is nil")
 	}
@@ -160,8 +174,18 @@ func (c *IsoComClient) AuthorizeVoid(ctx context.Context, orig *models.Transacti
 		OriginalRequestHex: hex.EncodeToString(orig.RequestPayload),
 	}
 
+	firstDigit, err := strconv.Atoi(orig.CardFirstDigit)
+	if err != nil {
+		return nil, fmt.Errorf("invalid card first digit: %q", orig.CardFirstDigit)
+	}
+
+	baseURL := c.restBaseURL
+	if firstDigit%2 == 1 {
+		baseURL = c.isoBaseURL
+	}
+
 	var out models.AuthorizeVoidRespDTO
-	if err := c.post(ctx, "/api/bank-comm/authorize/void", in, &out); err != nil {
+	if err := c.post(ctx, baseURL+"/api/bank-comm/authorize/void", in, &out); err != nil {
 		return nil, err
 	}
 
@@ -197,13 +221,13 @@ func (c *IsoComClient) AuthorizeVoid(ctx context.Context, orig *models.Transacti
 	}, nil
 }
 
-func (c *IsoComClient) post(ctx context.Context, path string, in any, out any) error {
+func (c *ComClient) post(ctx context.Context, path string, in any, out any) error {
 	b, err := json.Marshal(in)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, path, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
@@ -222,7 +246,7 @@ func (c *IsoComClient) post(ctx context.Context, path string, in any, out any) e
 	bodyBytes, _ := io.ReadAll(res.Body)
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("iso-comm returned %d: %s", res.StatusCode, string(bodyBytes))
+		return fmt.Errorf("comm returned %d: %s", res.StatusCode, string(bodyBytes))
 	}
 
 	if out == nil {
@@ -230,7 +254,7 @@ func (c *IsoComClient) post(ctx context.Context, path string, in any, out any) e
 	}
 
 	if err := json.Unmarshal(bodyBytes, out); err != nil {
-		return fmt.Errorf("failed to decode iso-comm response: %w", err)
+		return fmt.Errorf("failed to decode comm response: %w", err)
 	}
 
 	return nil

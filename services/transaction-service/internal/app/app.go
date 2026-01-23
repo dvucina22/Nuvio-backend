@@ -22,14 +22,14 @@ func Run() {
 	cardRepo := repository.NewBankCardRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 
-	isoComClient := *host.NewIsoComClient(cfg.IsoComBaseURL, func(ctx context.Context) (string, error) {
+	comClient := *host.NewComClient(cfg.IsoComBaseURL, cfg.RestComBaseURL, func(ctx context.Context) (string, error) {
 		return "", nil
 	})
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
 	cardService := service.NewCardService(cardRepo, cfg.EncryptionKey)
-	transactionService := service.NewTransactionService(transactionRepo, isoComClient, cardService)
+	transactionService := service.NewTransactionService(transactionRepo, comClient, cardService)
 
 	server := rest.NewServer(cfg.Port, cardService, jwtManager, transactionService)
 
