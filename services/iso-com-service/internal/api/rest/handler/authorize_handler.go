@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/iso-com-service/internal/service"
@@ -18,9 +19,17 @@ func NewAuthorizeHandler(svc *service.ISOService) *AuthorizeHandler {
 
 func (h *AuthorizeHandler) AuthorizeSale(w http.ResponseWriter, r *http.Request) {
 	var req api.AuthorizeSaleRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		return
+	}
+
+	jsonData, err := json.MarshalIndent(req, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal request to JSON: %v", err)
+	} else {
+		log.Printf("Iso com client received request:\n%s", jsonData)
 	}
 
 	resp, err := h.svc.AuthorizeSale(r.Context(), &req)

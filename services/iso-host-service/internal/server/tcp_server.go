@@ -33,7 +33,7 @@ func Start(addr string, handler func([]byte) ([]byte, error)) error {
 				return
 			}
 
-			log.Printf("ISO SEND: addr=%s payload_len=%d hex=%x", c.RemoteAddr(), len(resp), resp)
+			log.Printf("ISO SEND: addr=%s \npayload_len=%d \nhex=%x", c.RemoteAddr(), len(resp), resp)
 
 			c.Write(resp)
 		}(conn)

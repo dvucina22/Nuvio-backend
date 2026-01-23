@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/iso-host-service/internal/config"
@@ -13,7 +14,16 @@ func main() {
 	cfg := config.Load()
 
 	server.Start(cfg.Addr, func(req []byte) ([]byte, error) {
+		log.Printf("Host received request (hex): %X", req)
 		msg, err := iso8583.Decode(req)
+
+		jsonData, err := json.MarshalIndent(msg, "", "  ")
+		if err != nil {
+			log.Printf("Failed to marshal request to JSON: %v", err)
+		} else {
+			log.Printf("Decoded ISO8583 message:\n%s", jsonData)
+		}
+
 		if err != nil {
 			return iso8583.Encode(iso8583.FormatErrorResponse("1100")), nil
 		}

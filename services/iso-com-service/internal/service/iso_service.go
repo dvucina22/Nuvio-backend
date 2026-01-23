@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -102,6 +104,7 @@ func (s *ISOService) AuthorizeSale(ctx context.Context, req *api.AuthorizeSaleRe
 	}
 
 	wireReq := iso8583.Encode(msg1100)
+	log.Printf("Iso com service sale request to host (hex): %X", wireReq)
 
 	wireResp, err := s.tcp.Send(ctx, wireReq)
 	if err != nil {
@@ -111,6 +114,14 @@ func (s *ISOService) AuthorizeSale(ctx context.Context, req *api.AuthorizeSaleRe
 	respMsg, err := iso8583.Decode(wireResp)
 	if err != nil {
 		return nil, err
+	}
+	log.Printf("Host response (hex): %X", wireResp)
+
+	jsonData, err := json.MarshalIndent(respMsg, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal request to JSON: %v", err)
+	} else {
+		log.Printf("Host response (decoded):\n%s", jsonData)
 	}
 
 	rc, auth, err := parseSale1110(respMsg)
@@ -190,11 +201,13 @@ func (s *ISOService) AuthorizeVoid(ctx context.Context, req *api.AuthorizeVoidRe
 	}
 
 	wireReq := iso8583.Encode(msg1420)
+	log.Printf("Iso com service void request to host (hex): %X", wireReq)
 
 	wireResp, err := s.tcp.Send(ctx, wireReq)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Host response (hex): %X", wireResp)
 
 	respMsg, err := iso8583.Decode(wireResp)
 	if err != nil {
