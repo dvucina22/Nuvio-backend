@@ -27,20 +27,21 @@ type Config struct {
 	JWTExpiry     int
 	EncryptionKey []byte
 
-	IsoComBaseURL string
+	IsoComBaseURL  string
+	AllowedOrigins []string
 }
 
 func Load() *Config {
 	loadEnvFile(".env")
 
 	cfg := &Config{
-		Port:          getEnv("TRANSACTION_PORT", ""),
-		DatabaseDSN:   getEnv("DATABASE_DSN", ""),
-		JWTSecret:     getEnv("JWT_SECRET", ""),
-		JWTExpiry:     604800,
-		EncryptionKey: loadEncryptionKey(),
-
-		IsoComBaseURL: getEnv("ISO_COM_BASE_URL", ""),
+		Port:           getEnv("TRANSACTION_PORT", ""),
+		DatabaseDSN:    getEnv("DATABASE_DSN", ""),
+		JWTSecret:      getEnv("JWT_SECRET", ""),
+		JWTExpiry:      604800,
+		EncryptionKey:  loadEncryptionKey(),
+		IsoComBaseURL:  getEnv("ISO_COM_BASE_URL", ""),
+		AllowedOrigins: loadAllowedOrigins(),
 	}
 
 	if cfg.Port == "" {
@@ -52,12 +53,28 @@ func Load() *Config {
 	if cfg.JWTSecret == "" {
 		log.Fatal("JWT_SECRET not set in .env")
 	}
-
 	if cfg.IsoComBaseURL == "" {
 		log.Fatal("ISO_COM_BASE_URL not set in .env")
 	}
+	if len(cfg.AllowedOrigins) == 0 {
+		log.Fatal("ALLOWED_ORIGINS not set in .env")
+	}
 
 	return cfg
+}
+
+func loadAllowedOrigins() []string {
+	originsStr := getEnv("ALLOWED_ORIGINS", "")
+	if originsStr == "" {
+		return []string{}
+	}
+
+	origins := strings.Split(originsStr, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+
+	return origins
 }
 
 func loadEnvFile(filename string) {

@@ -23,10 +23,11 @@ type OAuthConfig struct {
 }
 
 type Config struct {
-	Port        string
-	DatabaseDSN string
-	JWTSecret   string
-	JWTExpiry   int
+	Port           string
+	DatabaseDSN    string
+	JWTSecret      string
+	JWTExpiry      int
+	AllowedOrigins []string
 
 	OAuth OAuthConfig
 }
@@ -35,10 +36,11 @@ func Load() *Config {
 	loadEnvFile(".env")
 
 	cfg := &Config{
-		Port:        getEnv("ACCOUNT_PORT", ""),
-		DatabaseDSN: getEnv("DATABASE_DSN", ""),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
-		JWTExpiry:   604800,
+		Port:           getEnv("ACCOUNT_PORT", ""),
+		DatabaseDSN:    getEnv("DATABASE_DSN", ""),
+		JWTSecret:      getEnv("JWT_SECRET", ""),
+		JWTExpiry:      604800,
+		AllowedOrigins: loadAllowedOrigins(),
 		OAuth: OAuthConfig{
 			Google: OAuthProviderConfig{
 				ClientID:     getEnv("OAUTH_GOOGLE_CLIENT_ID", ""),
@@ -119,4 +121,18 @@ func (c *Config) BuildOAuth2Configs() *OAuth2Configs {
 	}
 
 	return out
+}
+
+func loadAllowedOrigins() []string {
+	originsStr := getEnv("ALLOWED_ORIGINS", "")
+	if originsStr == "" {
+		return []string{}
+	}
+
+	origins := strings.Split(originsStr, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+
+	return origins
 }

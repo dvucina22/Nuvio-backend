@@ -256,9 +256,10 @@ func buildTransactionProductsFromRequest(req *models.SaleRequest) ([]*models.Tra
 		total += lineAmount
 
 		tp := &models.TransactionProduct{
-			ProductID: p.ProductID,
-			UnitPrice: p.UnitPrice,
-			Quantity:  p.Quantity,
+			ProductID:  p.ProductID,
+			UnitPrice:  p.UnitPrice,
+			Quantity:   p.Quantity,
+			ProductSKU: p.SKU,
 		}
 
 		if p.Name != nil {

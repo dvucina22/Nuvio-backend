@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/account-service/internal/api/rest/handler"
 	"github.com/account-service/internal/api/rest/middleware"
+	"github.com/account-service/internal/config"
 	"github.com/account-service/internal/service"
 	"github.com/account-service/pkg/utils"
 	"github.com/gorilla/mux"
@@ -17,8 +18,11 @@ func NewRouter(
 	passwordHelper *utils.PasswordHelper,
 	clousdinaryService *service.CloudinaryService,
 	roleService *service.RoleService,
+	cfg *config.Config,
 ) *mux.Router {
 	r := mux.NewRouter()
+	corsMiddleware := middleware.NewCORSMiddleware(cfg.AllowedOrigins)
+	r.Use(corsMiddleware.Handle)
 
 	registerHandler := handler.NewRegisterHandler(registerService)
 	loginHandler := handler.NewLoginHandler(loginService)
