@@ -29,18 +29,21 @@ type Config struct {
 
 	IsoComBaseURL  string
 	AllowedOrigins []string
+	RestComBaseURL string
 }
 
 func Load() *Config {
 	loadEnvFile(".env")
 
 	cfg := &Config{
-		Port:           getEnv("TRANSACTION_PORT", ""),
-		DatabaseDSN:    getEnv("DATABASE_DSN", ""),
-		JWTSecret:      getEnv("JWT_SECRET", ""),
-		JWTExpiry:      604800,
-		EncryptionKey:  loadEncryptionKey(),
+		Port:          getEnv("TRANSACTION_PORT", ""),
+		DatabaseDSN:   getEnv("DATABASE_DSN", ""),
+		JWTSecret:     getEnv("JWT_SECRET", ""),
+		JWTExpiry:     604800,
+		EncryptionKey: loadEncryptionKey(),
+
 		IsoComBaseURL:  getEnv("ISO_COM_BASE_URL", ""),
+		RestComBaseURL: getEnv("REST_COM_BASE_URL", ""),
 		AllowedOrigins: loadAllowedOrigins(),
 	}
 
@@ -58,6 +61,9 @@ func Load() *Config {
 	}
 	if len(cfg.AllowedOrigins) == 0 {
 		log.Fatal("ALLOWED_ORIGINS not set in .env")
+	}
+	if cfg.RestComBaseURL == "" {
+		log.Fatal("REST_COM_BASE_URL not set in .env")
 	}
 
 	return cfg

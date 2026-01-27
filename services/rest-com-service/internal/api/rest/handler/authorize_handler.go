@@ -2,18 +2,17 @@ package handler
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
-	"github.com/iso-com-service/internal/service"
-	api "github.com/iso-com-service/pkg/models"
+	"github.com/rest-com-service/internal/service"
+	api "github.com/rest-com-service/pkg/models"
 )
 
 type AuthorizeHandler struct {
-	svc *service.ISOService
+	svc *service.RESTService
 }
 
-func NewAuthorizeHandler(svc *service.ISOService) *AuthorizeHandler {
+func NewAuthorizeHandler(svc *service.RESTService) *AuthorizeHandler {
 	return &AuthorizeHandler{svc: svc}
 }
 
@@ -23,13 +22,6 @@ func (h *AuthorizeHandler) AuthorizeSale(w http.ResponseWriter, r *http.Request)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		return
-	}
-
-	jsonData, err := json.MarshalIndent(req, "", "  ")
-	if err != nil {
-		log.Printf("Failed to marshal request to JSON: %v", err)
-	} else {
-		log.Printf("Iso com client received request:\n%s", jsonData)
 	}
 
 	resp, err := h.svc.AuthorizeSale(r.Context(), &req)
