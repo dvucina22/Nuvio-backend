@@ -40,23 +40,23 @@ func NewRouter(
 	optionalProtected := catalogAPI.PathPrefix("").Subrouter()
 	optionalProtected.Use(authMiddleware.OptionalAuth)
 
-	optionalProtected.HandleFunc("/products", productHandler.CreateProduct).Methods("POST")
-	optionalProtected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST")
-	optionalProtected.HandleFunc("/products/images", productHandler.GetPrimaryImages).Methods("POST")
-	optionalProtected.HandleFunc("/products/{id}", productHandler.GetProductByID).Methods("GET")
-	optionalProtected.HandleFunc("/products/{id}", productHandler.UpdateProductByID).Methods("PUT")
-	optionalProtected.HandleFunc("/products/{id}", productHandler.DeleteProductByID).Methods("DELETE")
+	optionalProtected.HandleFunc("/products", productHandler.CreateProduct).Methods("POST", "OPTIONS")
+	optionalProtected.HandleFunc("/products/filter", productHandler.GetFilteredProducts).Methods("POST", "OPTIONS")
+	optionalProtected.HandleFunc("/products/images", productHandler.GetPrimaryImages).Methods("POST", "OPTIONS")
+	optionalProtected.HandleFunc("/products/{id}", productHandler.GetProductByID).Methods("GET", "OPTIONS")
+	optionalProtected.HandleFunc("/products/{id}", productHandler.UpdateProductByID).Methods("PUT", "OPTIONS")
+	optionalProtected.HandleFunc("/products/{id}", productHandler.DeleteProductByID).Methods("DELETE", "OPTIONS")
 
-	optionalProtected.HandleFunc("/brands", brandHandler.GetAllBrands).Methods("GET")
-	optionalProtected.HandleFunc("/categories", categoryHandler.GetAllCategories).Methods("GET")
-	optionalProtected.HandleFunc("/attributes", attributesHandler.GetAttributes).Methods("GET")
+	optionalProtected.HandleFunc("/brands", brandHandler.GetAllBrands).Methods("GET", "OPTIONS")
+	optionalProtected.HandleFunc("/categories", categoryHandler.GetAllCategories).Methods("GET", "OPTIONS")
+	optionalProtected.HandleFunc("/attributes", attributesHandler.GetAttributes).Methods("GET", "OPTIONS")
 
-	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST")
-	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE")
+	protected.HandleFunc("/products/favorite", favoritesHanlder.AddToFavorites).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/products/favorite", favoritesHanlder.RemoveFromFavorites).Methods("DELETE", "OPTIONS")
 
-	protected.HandleFunc("/products/cart/{id}", cartHandler.AddProductToCart).Methods("POST")
-	protected.HandleFunc("/products/cart/{id}", cartHandler.RemoveProductFromCart).Methods("DELETE")
-	protected.HandleFunc("/products/cart", cartHandler.GetCartContents).Methods("GET")
-	protected.HandleFunc("/products/cart/empty", cartHandler.EmptyCart).Methods("GET")
+	protected.HandleFunc("/products/cart/{id}", cartHandler.AddProductToCart).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/products/cart/{id}", cartHandler.RemoveProductFromCart).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/products/cart", cartHandler.GetCartContents).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/products/cart/empty", cartHandler.EmptyCart).Methods("GET", "OPTIONS")
 	return r
 }

@@ -21,6 +21,7 @@ func NewRouter(
 	cfg *config.Config,
 ) *mux.Router {
 	r := mux.NewRouter()
+
 	corsMiddleware := middleware.NewCORSMiddleware(cfg.AllowedOrigins)
 	r.Use(corsMiddleware.Handle)
 
@@ -33,28 +34,28 @@ func NewRouter(
 
 	accountsAPI := r.PathPrefix("/api/accounts").Subrouter()
 
-	accountsAPI.HandleFunc("/register", registerHandler.Register).Methods("POST")
-	accountsAPI.HandleFunc("/login", loginHandler.Login).Methods("POST")
+	accountsAPI.HandleFunc("/register", registerHandler.Register).Methods("POST", "OPTIONS")
+	accountsAPI.HandleFunc("/login", loginHandler.Login).Methods("POST", "OPTIONS")
 
-	accountsAPI.HandleFunc("/oauth/{provider}/verify", oauthHandler.VerifyToken).Methods("POST")
+	accountsAPI.HandleFunc("/oauth/{provider}/verify", oauthHandler.VerifyToken).Methods("POST", "OPTIONS")
 
 	protected := accountsAPI.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
 
-	protected.HandleFunc("/logged-user", userHandler.GetUserInfo).Methods("GET")
-	protected.HandleFunc("/logged-user", userHandler.UpdateUserInfo).Methods("PUT")
-	protected.HandleFunc("/update-password", userHandler.UpdateUserPassword).Methods("POST")
+	protected.HandleFunc("/logged-user", userHandler.GetUserInfo).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/logged-user", userHandler.UpdateUserInfo).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/update-password", userHandler.UpdateUserPassword).Methods("POST", "OPTIONS")
 
-	protected.HandleFunc("/profile-picture/update", userHandler.UpdateProfilePicture).Methods("PUT")
-	protected.HandleFunc("/profile-picture/upload-signature", userHandler.GetUploadSignature).Methods("GET")
+	protected.HandleFunc("/profile-picture/update", userHandler.UpdateProfilePicture).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/profile-picture/upload-signature", userHandler.GetUploadSignature).Methods("GET", "OPTIONS")
 
-	protected.HandleFunc("/roles", roleHandler.GetAllRoles).Methods("GET")
-	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.AddUserRole).Methods("POST")
-	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.RemoveUserRole).Methods("DELETE")
+	protected.HandleFunc("/roles", roleHandler.GetAllRoles).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.AddUserRole).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/roles/{role_id}/user/{user_id}", roleHandler.RemoveUserRole).Methods("DELETE", "OPTIONS")
 
-	protected.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
-	protected.HandleFunc("/users/{id}", userHandler.DeactivateUser).Methods("DELETE")
-	protected.HandleFunc("/users/filter", userHandler.FilterUsersByName).Methods("GET")
+	protected.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/users/{id}", userHandler.DeactivateUser).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/users/filter", userHandler.FilterUsersByName).Methods("GET", "OPTIONS")
 
 	return r
 }

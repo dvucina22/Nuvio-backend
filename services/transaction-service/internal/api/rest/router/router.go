@@ -30,17 +30,17 @@ func NewRouter(
 	protected := transactionsAPI.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
 
-	protected.HandleFunc("/cards", cardHandler.GetCards).Methods("GET")
-	protected.HandleFunc("/cards/{card_id}", cardHandler.GetCard).Methods("GET")
-	protected.HandleFunc("/cards", cardHandler.AddCard).Methods("POST")
-	protected.HandleFunc("/cards/{card_id}", cardHandler.DeleteCard).Methods("DELETE")
-	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT")
+	protected.HandleFunc("/cards", cardHandler.GetCards).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/cards/{card_id}", cardHandler.GetCard).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/cards", cardHandler.AddCard).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/cards/{card_id}", cardHandler.DeleteCard).Methods("DELETE", "OPTIONS")
+	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT", "OPTIONS")
 
-	protected.HandleFunc("/history", transactionHandler.GetFilteredTransactions).Methods("POST")
-	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetTransactionDetail).Methods("GET")
+	protected.HandleFunc("/history", transactionHandler.GetFilteredTransactions).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetTransactionDetail).Methods("GET", "OPTIONS")
 
-	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST")
-	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST")
+	protected.HandleFunc("/sale", transactionHandler.CreateSale).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/sale/{transaction_id}/void", transactionHandler.VoidSale).Methods("POST", "OPTIONS")
 
 	return r
 }
