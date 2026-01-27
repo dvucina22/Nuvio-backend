@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/catalog-service/internal/api/rest/handler"
 	"github.com/catalog-service/internal/api/rest/middleware"
+	"github.com/catalog-service/internal/config"
 	"github.com/catalog-service/internal/service"
 	"github.com/catalog-service/pkg/utils"
 	"github.com/gorilla/mux"
@@ -16,8 +17,12 @@ func NewRouter(
 	brandService *service.BrandService,
 	categoryService *service.CategoryService,
 	attributesService *service.AttributesService,
+	cfg *config.Config,
 ) *mux.Router {
 	r := mux.NewRouter()
+
+	corsMiddleware := middleware.NewCORSMiddleware(cfg.AllowedOrigins)
+	r.Use(corsMiddleware.Handle)
 
 	productHandler := handler.NewProductHandler(productService)
 	favoritesHanlder := handler.NewFavoritesHandler(favoritesService)

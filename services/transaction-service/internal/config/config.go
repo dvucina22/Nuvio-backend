@@ -28,6 +28,7 @@ type Config struct {
 	EncryptionKey []byte
 
 	IsoComBaseURL  string
+	AllowedOrigins []string
 	RestComBaseURL string
 }
 
@@ -43,6 +44,7 @@ func Load() *Config {
 
 		IsoComBaseURL:  getEnv("ISO_COM_BASE_URL", ""),
 		RestComBaseURL: getEnv("REST_COM_BASE_URL", ""),
+		AllowedOrigins: loadAllowedOrigins(),
 	}
 
 	if cfg.Port == "" {
@@ -54,15 +56,31 @@ func Load() *Config {
 	if cfg.JWTSecret == "" {
 		log.Fatal("JWT_SECRET not set in .env")
 	}
-
 	if cfg.IsoComBaseURL == "" {
 		log.Fatal("ISO_COM_BASE_URL not set in .env")
+	}
+	if len(cfg.AllowedOrigins) == 0 {
+		log.Fatal("ALLOWED_ORIGINS not set in .env")
 	}
 	if cfg.RestComBaseURL == "" {
 		log.Fatal("REST_COM_BASE_URL not set in .env")
 	}
 
 	return cfg
+}
+
+func loadAllowedOrigins() []string {
+	originsStr := getEnv("ALLOWED_ORIGINS", "")
+	if originsStr == "" {
+		return []string{}
+	}
+
+	origins := strings.Split(originsStr, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+
+	return origins
 }
 
 func loadEnvFile(filename string) {

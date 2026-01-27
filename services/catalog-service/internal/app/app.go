@@ -33,7 +33,7 @@ func Run() {
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Minute)
 
-	server := rest.NewServer(cfg.Port, jwtManager, productService, favoritesService, cartService, brandService, categoryService, attributesService)
+	server := rest.NewServer(cfg.Port, jwtManager, productService, favoritesService, cartService, brandService, categoryService, attributesService, cfg)
 
 	log.Printf("Catalog Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())

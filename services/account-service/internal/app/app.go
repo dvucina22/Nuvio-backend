@@ -39,7 +39,7 @@ func Run() {
 	}
 
 	server := rest.NewServer(cfg.Port, registerService, loginService,
-		oauthService, userService, jwtManager, passwordHelper, cloudinaryService, roleService)
+		oauthService, userService, jwtManager, passwordHelper, cloudinaryService, roleService, cfg)
 
 	log.Printf("Account Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/catalog-service/internal/api/rest/router"
+	"github.com/catalog-service/internal/config"
 	"github.com/catalog-service/internal/service"
 	"github.com/catalog-service/pkg/utils"
 )
@@ -18,11 +19,12 @@ type Server struct {
 	brandService      *service.BrandService
 	categoryService   *service.CategoryService
 	attributesService *service.AttributesService
+	cfg               *config.Config
 }
 
 func NewServer(port string, jwtManager *utils.JWTManager, productService *service.ProductService, favoritesService *service.FavoritesService,
 	cartService *service.CartService, brandService *service.BrandService, categoryService *service.CategoryService,
-	attributesService *service.AttributesService) *Server {
+	attributesService *service.AttributesService, cfg *config.Config) *Server {
 	return &Server{
 		port:              port,
 		jwtManager:        jwtManager,
@@ -32,10 +34,11 @@ func NewServer(port string, jwtManager *utils.JWTManager, productService *servic
 		brandService:      brandService,
 		categoryService:   categoryService,
 		attributesService: attributesService,
+		cfg:               cfg,
 	}
 }
 
 func (s *Server) Run() error {
-	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService, s.cartService, s.brandService, s.categoryService, s.attributesService)
+	r := router.NewRouter(s.jwtManager, s.productService, s.favoritesService, s.cartService, s.brandService, s.categoryService, s.attributesService, s.cfg)
 	return http.ListenAndServe(fmt.Sprintf(":%s", s.port), r)
 }

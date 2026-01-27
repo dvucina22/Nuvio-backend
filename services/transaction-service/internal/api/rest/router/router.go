@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/transaction-service/internal/api/rest/handler"
 	"github.com/transaction-service/internal/api/rest/middleware"
+	"github.com/transaction-service/internal/config"
 	"github.com/transaction-service/internal/service"
 	"github.com/transaction-service/pkg/utils"
 )
@@ -12,8 +13,12 @@ func NewRouter(
 	jwtManager *utils.JWTManager,
 	cardService *service.CardService,
 	transactionService *service.TransactionService,
+	cfg *config.Config,
 ) *mux.Router {
 	r := mux.NewRouter()
+
+	corsMiddleware := middleware.NewCORSMiddleware(cfg.AllowedOrigins)
+	r.Use(corsMiddleware.Handle)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
 

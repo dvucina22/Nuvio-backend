@@ -31,7 +31,7 @@ func Run() {
 	cardService := service.NewCardService(cardRepo, cfg.EncryptionKey)
 	transactionService := service.NewTransactionService(transactionRepo, comClient, cardService)
 
-	server := rest.NewServer(cfg.Port, cardService, jwtManager, transactionService)
+	server := rest.NewServer(cfg.Port, cardService, jwtManager, transactionService, cfg)
 
 	log.Printf("Transaction Service running on port %s", cfg.Port)
 	log.Fatal(server.Run())
