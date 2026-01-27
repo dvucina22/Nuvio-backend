@@ -114,7 +114,7 @@ func (c *ComClient) AuthorizeSale(ctx context.Context, userID uuid.UUID, req *mo
 	}
 
 	var out models.AuthorizeSaleRespDTO
-	if err := c.post(ctx, baseURL+"/api/bank-comm/authorize/sale", in, &out); err != nil {
+	if err := c.post(ctx, baseURL+"/authorize/sale", in, &out); err != nil {
 		return nil, err
 	}
 
