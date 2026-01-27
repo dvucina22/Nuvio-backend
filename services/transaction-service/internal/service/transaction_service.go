@@ -441,3 +441,12 @@ func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID s
 
 	return detail, nil
 }
+
+func (s *TransactionService) GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error) {
+	stats, err := s.repo.GetTransactionStatistics(ctx)
+	if err != nil {
+		return nil, models.ErrDatabaseOperation
+	}
+
+	return stats, nil
+}

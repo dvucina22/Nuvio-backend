@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -18,10 +19,11 @@ type TransactionRepository interface {
 	VoidTransaction(ctx context.Context, voidTx *models.Transaction) error
 	HasVoidForOriginal(ctx context.Context, originalTxID int64) (bool, error)
 	GetTransactionWithProducts(ctx context.Context, userID uuid.UUID, txID int64) (*models.Transaction, []*models.TransactionProduct, error)
-    GetUserTransactionDetail(ctx context.Context, userID uuid.UUID, txID int64) (*models.TransactionDetail, error)
-    GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error)
-    GetFilteredUserTransactions(ctx context.Context, filter *models.TransactionFilter) ([]*models.TransactionListItem, int64, error)
+	GetUserTransactionDetail(ctx context.Context, userID uuid.UUID, txID int64) (*models.TransactionDetail, error)
+	GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error)
+	GetFilteredUserTransactions(ctx context.Context, filter *models.TransactionFilter) ([]*models.TransactionListItem, int64, error)
 	GetFilteredAdminTransactions(ctx context.Context, filter *models.AdminTransactionFilter) ([]*models.AdminTransactionListItem, int64, error)
+	GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error)
 }
 
 type transactionRepo struct {
@@ -523,7 +525,7 @@ func (r *transactionRepo) GetTransactionWithProducts(ctx context.Context, userID
 }
 
 func (r *transactionRepo) GetUserTransactionDetail(ctx context.Context, userID uuid.UUID, txID int64) (*models.TransactionDetail, error) {
-    q := `
+	q := `
         SELECT 
             t.id,
             t.status,
@@ -539,29 +541,29 @@ func (r *transactionRepo) GetUserTransactionDetail(ctx context.Context, userID u
         WHERE t.id = $1 AND t.user_id = $2 AND t.type = 'SALE'
         LIMIT 1
     `
-    
-    var detail models.TransactionDetail
-    err := r.db.QueryRowContext(ctx, q, txID, userID).Scan(
-        &detail.ID,
-        &detail.Status,
-        &detail.Amount,
-        &detail.CurrencyCode,
-        &detail.PANMasked,
-        &detail.CardExpirationYY,
-        &detail.CardExpirationMM,
-        &detail.CreatedAt,
-        &detail.TransactionDate,
-        &detail.TransactionTime,
-    )
-    
-    if err == sql.ErrNoRows {
-        return nil, nil
-    }
-    if err != nil {
-        return nil, fmt.Errorf("failed to get transaction detail: %w", err)
-    }
-    
-    productsQ := `
+
+	var detail models.TransactionDetail
+	err := r.db.QueryRowContext(ctx, q, txID, userID).Scan(
+		&detail.ID,
+		&detail.Status,
+		&detail.Amount,
+		&detail.CurrencyCode,
+		&detail.PANMasked,
+		&detail.CardExpirationYY,
+		&detail.CardExpirationMM,
+		&detail.CreatedAt,
+		&detail.TransactionDate,
+		&detail.TransactionTime,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction detail: %w", err)
+	}
+
+	productsQ := `
         SELECT 
             id,
             product_id,
@@ -573,48 +575,48 @@ func (r *transactionRepo) GetUserTransactionDetail(ctx context.Context, userID u
         WHERE transaction_id = $1
         ORDER BY id
     `
-    
-    rows, err := r.db.QueryContext(ctx, productsQ, txID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to query products: %w", err)
-    }
-    defer rows.Close()
-    
-    for rows.Next() {
-        var p models.TransactionProductDetail
-        var name, sku sql.NullString
-        
-        if err := rows.Scan(
-            &p.ID,
-            &p.ProductID,
-            &p.UnitPrice,
-            &p.Quantity,
-            &name,
-            &sku,
-        ); err != nil {
-            return nil, fmt.Errorf("failed to scan product: %w", err)
-        }
-        
-        if name.Valid {
-            p.ProductName = &name.String
-        }
-        if sku.Valid {
-            p.ProductSKU = &sku.String
-        }
-        
-        p.LineTotal = p.UnitPrice * int64(p.Quantity)
-        detail.Products = append(detail.Products, p)
-    }
-    
-    if err := rows.Err(); err != nil {
-        return nil, fmt.Errorf("iteration error: %w", err)
-    }
-    
-    return &detail, nil
+
+	rows, err := r.db.QueryContext(ctx, productsQ, txID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query products: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var p models.TransactionProductDetail
+		var name, sku sql.NullString
+
+		if err := rows.Scan(
+			&p.ID,
+			&p.ProductID,
+			&p.UnitPrice,
+			&p.Quantity,
+			&name,
+			&sku,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan product: %w", err)
+		}
+
+		if name.Valid {
+			p.ProductName = &name.String
+		}
+		if sku.Valid {
+			p.ProductSKU = &sku.String
+		}
+
+		p.LineTotal = p.UnitPrice * int64(p.Quantity)
+		detail.Products = append(detail.Products, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteration error: %w", err)
+	}
+
+	return &detail, nil
 }
 
 func (r *transactionRepo) GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error) {
-    q := `
+	q := `
         SELECT 
             t.id,
             t.user_id,
@@ -644,62 +646,62 @@ func (r *transactionRepo) GetAdminTransactionDetail(ctx context.Context, txID in
         WHERE t.id = $1
         LIMIT 1
     `
-    
-    var detail models.AdminTransactionDetail
-    var bankCardID, originalTxID sql.NullInt64
-    var responseCode, authCode sql.NullString
-    
-    err := r.db.QueryRowContext(ctx, q, txID).Scan(
-        &detail.ID,
-        &detail.UserID,
-        &bankCardID,
-        &detail.Type,
-        &detail.Status,
-        &detail.PANMasked,
-        &detail.CardFirstDigit,
-        &detail.CardExpirationYY,
-        &detail.CardExpirationMM,
-        &detail.ProcessingCode,
-        &detail.Amount,
-        &detail.CurrencyCode,
-        &detail.STAN,
-        &detail.TransactionTime,
-        &detail.TransactionDate,
-        &detail.RRN,
-        &detail.TerminalTID,
-        &detail.MerchantMID,
-        &detail.HostType,
-        &originalTxID,
-        &responseCode,
-        &authCode,
-        &detail.CreatedAt,
-        &detail.UpdatedAt,
-    )
-    
-    if err == sql.ErrNoRows {
-        return nil, nil
-    }
-    if err != nil {
-        return nil, fmt.Errorf("failed to get admin transaction detail: %w", err)
-    }
-    
-    if bankCardID.Valid {
-        id := bankCardID.Int64
-        detail.BankCardID = &id
-    }
-    if originalTxID.Valid {
-        id := originalTxID.Int64
-        detail.OriginalTransactionID = &id
-    }
-    if responseCode.Valid {
-        detail.ResponseCode = &responseCode.String
-    }
-    if authCode.Valid {
-        detail.AuthCode = &authCode.String
-    }
-    
-    if detail.Type == "SALE" {
-        productsQ := `
+
+	var detail models.AdminTransactionDetail
+	var bankCardID, originalTxID sql.NullInt64
+	var responseCode, authCode sql.NullString
+
+	err := r.db.QueryRowContext(ctx, q, txID).Scan(
+		&detail.ID,
+		&detail.UserID,
+		&bankCardID,
+		&detail.Type,
+		&detail.Status,
+		&detail.PANMasked,
+		&detail.CardFirstDigit,
+		&detail.CardExpirationYY,
+		&detail.CardExpirationMM,
+		&detail.ProcessingCode,
+		&detail.Amount,
+		&detail.CurrencyCode,
+		&detail.STAN,
+		&detail.TransactionTime,
+		&detail.TransactionDate,
+		&detail.RRN,
+		&detail.TerminalTID,
+		&detail.MerchantMID,
+		&detail.HostType,
+		&originalTxID,
+		&responseCode,
+		&authCode,
+		&detail.CreatedAt,
+		&detail.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get admin transaction detail: %w", err)
+	}
+
+	if bankCardID.Valid {
+		id := bankCardID.Int64
+		detail.BankCardID = &id
+	}
+	if originalTxID.Valid {
+		id := originalTxID.Int64
+		detail.OriginalTransactionID = &id
+	}
+	if responseCode.Valid {
+		detail.ResponseCode = &responseCode.String
+	}
+	if authCode.Valid {
+		detail.AuthCode = &authCode.String
+	}
+
+	if detail.Type == "SALE" {
+		productsQ := `
             SELECT 
                 id,
                 product_id,
@@ -711,45 +713,45 @@ func (r *transactionRepo) GetAdminTransactionDetail(ctx context.Context, txID in
             WHERE transaction_id = $1
             ORDER BY id
         `
-        
-        rows, err := r.db.QueryContext(ctx, productsQ, txID)
-        if err != nil {
-            return nil, fmt.Errorf("failed to query products: %w", err)
-        }
-        defer rows.Close()
-        
-        for rows.Next() {
-            var p models.TransactionProductDetail
-            var name, sku sql.NullString
-            
-            if err := rows.Scan(
-                &p.ID,
-                &p.ProductID,
-                &p.UnitPrice,
-                &p.Quantity,
-                &name,
-                &sku,
-            ); err != nil {
-                return nil, fmt.Errorf("failed to scan product: %w", err)
-            }
-            
-            if name.Valid {
-                p.ProductName = &name.String
-            }
-            if sku.Valid {
-                p.ProductSKU = &sku.String
-            }
-            
-            p.LineTotal = p.UnitPrice * int64(p.Quantity)
-            detail.Products = append(detail.Products, p)
-        }
-        
-        if err := rows.Err(); err != nil {
-            return nil, fmt.Errorf("iteration error: %w", err)
-        }
-    }
-    
-    return &detail, nil
+
+		rows, err := r.db.QueryContext(ctx, productsQ, txID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query products: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var p models.TransactionProductDetail
+			var name, sku sql.NullString
+
+			if err := rows.Scan(
+				&p.ID,
+				&p.ProductID,
+				&p.UnitPrice,
+				&p.Quantity,
+				&name,
+				&sku,
+			); err != nil {
+				return nil, fmt.Errorf("failed to scan product: %w", err)
+			}
+
+			if name.Valid {
+				p.ProductName = &name.String
+			}
+			if sku.Valid {
+				p.ProductSKU = &sku.String
+			}
+
+			p.LineTotal = p.UnitPrice * int64(p.Quantity)
+			detail.Products = append(detail.Products, p)
+		}
+
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iteration error: %w", err)
+		}
+	}
+
+	return &detail, nil
 }
 
 func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filter *models.TransactionFilter) ([]*models.TransactionListItem, int64, error) {
@@ -757,15 +759,15 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 	if err != nil {
 		return nil, 0, fmt.Errorf("invalid user id: %w", err)
 	}
-	
+
 	var conditions []string
 	var args []interface{}
 	argCounter := 1
-	
+
 	conditions = append(conditions, fmt.Sprintf("t.user_id = $%d", argCounter))
 	args = append(args, userUUID)
 	argCounter++
-	
+
 	if len(filter.Types) > 0 {
 		placeholders := make([]string, len(filter.Types))
 		for i, txType := range filter.Types {
@@ -777,7 +779,7 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 	} else {
 		conditions = append(conditions, "t.type IN ('SALE', 'VOID')")
 	}
-	
+
 	if filter.Search != nil && strings.TrimSpace(*filter.Search) != "" {
 		searchPattern := "%" + strings.TrimSpace(*filter.Search) + "%"
 		conditions = append(conditions, fmt.Sprintf(`(
@@ -791,21 +793,21 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 		args = append(args, searchPattern)
 		argCounter++
 	}
-	
+
 	dateFrom, dateTo := filter.GetParsedDates()
-	
+
 	if dateFrom != nil {
 		conditions = append(conditions, fmt.Sprintf("t.created_at >= $%d", argCounter))
 		args = append(args, *dateFrom)
 		argCounter++
 	}
-	
+
 	if dateTo != nil {
 		conditions = append(conditions, fmt.Sprintf("t.created_at <= $%d", argCounter))
 		args = append(args, *dateTo)
 		argCounter++
 	}
-	
+
 	if len(filter.Statuses) > 0 {
 		placeholders := make([]string, len(filter.Statuses))
 		for i, status := range filter.Statuses {
@@ -815,47 +817,47 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 		}
 		conditions = append(conditions, fmt.Sprintf("t.status IN (%s)", strings.Join(placeholders, ",")))
 	}
-	
+
 	if filter.AmountMin != nil {
 		conditions = append(conditions, fmt.Sprintf("t.amount >= $%d", argCounter))
 		args = append(args, *filter.AmountMin)
 		argCounter++
 	}
-	
+
 	if filter.AmountMax != nil {
 		conditions = append(conditions, fmt.Sprintf("t.amount <= $%d", argCounter))
 		args = append(args, *filter.AmountMax)
 		argCounter++
 	}
-	
+
 	whereClause := strings.Join(conditions, " AND ")
-	
+
 	havingClause := ""
 	var havingArgs []interface{}
-	
+
 	if filter.ProductCountMin != nil || filter.ProductCountMax != nil {
 		var havingConditions []string
-		
+
 		if filter.ProductCountMin != nil {
 			havingConditions = append(havingConditions, fmt.Sprintf("COUNT(tp.id) >= $%d", argCounter))
 			havingArgs = append(havingArgs, *filter.ProductCountMin)
 			argCounter++
 		}
-		
+
 		if filter.ProductCountMax != nil {
 			havingConditions = append(havingConditions, fmt.Sprintf("COUNT(tp.id) <= $%d", argCounter))
 			havingArgs = append(havingArgs, *filter.ProductCountMax)
 			argCounter++
 		}
-		
+
 		if len(havingConditions) > 0 {
 			havingClause = "HAVING " + strings.Join(havingConditions, " AND ")
 		}
 	}
-	
+
 	countArgs := append([]interface{}{}, args...)
 	countArgs = append(countArgs, havingArgs...)
-	
+
 	countQ := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM (
@@ -867,18 +869,18 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 			%s
 		) AS filtered_transactions
 	`, whereClause, havingClause)
-	
+
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countQ, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count transactions: %w", err)
 	}
-	
+
 	dataArgs := append([]interface{}{}, args...)
 	dataArgs = append(dataArgs, havingArgs...)
-	
+
 	offset := (filter.Page - 1) * filter.PageSize
 	dataArgs = append(dataArgs, filter.PageSize, offset)
-	
+
 	dataQ := fmt.Sprintf(`
 		SELECT 
 			t.id,
@@ -897,18 +899,18 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 		ORDER BY t.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, havingClause, argCounter, argCounter+1)
-	
+
 	rows, err := r.db.QueryContext(ctx, dataQ, dataArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query filtered transactions: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var transactions []*models.TransactionListItem
 	for rows.Next() {
 		var tx models.TransactionListItem
 		var productIds []int64
-		
+
 		if err := rows.Scan(
 			&tx.ID,
 			&tx.Status,
@@ -921,15 +923,15 @@ func (r *transactionRepo) GetFilteredUserTransactions(ctx context.Context, filte
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan transaction: %w", err)
 		}
-		
+
 		tx.ProductIds = productIds
 		transactions = append(transactions, &tx)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iteration error: %w", err)
 	}
-	
+
 	return transactions, total, nil
 }
 
@@ -937,7 +939,7 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 	var conditions []string
 	var args []interface{}
 	argCounter := 1
-	
+
 	if len(filter.Types) > 0 {
 		placeholders := make([]string, len(filter.Types))
 		for i, txType := range filter.Types {
@@ -949,7 +951,7 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 	} else {
 		conditions = append(conditions, "t.type IN ('SALE', 'VOID')")
 	}
-	
+
 	if filter.Search != nil && strings.TrimSpace(*filter.Search) != "" {
 		searchPattern := "%" + strings.TrimSpace(*filter.Search) + "%"
 		conditions = append(conditions, fmt.Sprintf(`(
@@ -964,7 +966,7 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 		args = append(args, searchPattern)
 		argCounter++
 	}
-	
+
 	if filter.UserID != nil && strings.TrimSpace(*filter.UserID) != "" {
 		userUUID, err := uuid.Parse(*filter.UserID)
 		if err == nil {
@@ -973,21 +975,21 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 			argCounter++
 		}
 	}
-	
+
 	dateFrom, dateTo := filter.GetParsedDates()
-	
+
 	if dateFrom != nil {
 		conditions = append(conditions, fmt.Sprintf("t.created_at >= $%d", argCounter))
 		args = append(args, *dateFrom)
 		argCounter++
 	}
-	
+
 	if dateTo != nil {
 		conditions = append(conditions, fmt.Sprintf("t.created_at <= $%d", argCounter))
 		args = append(args, *dateTo)
 		argCounter++
 	}
-	
+
 	if len(filter.Statuses) > 0 {
 		placeholders := make([]string, len(filter.Statuses))
 		for i, status := range filter.Statuses {
@@ -997,42 +999,42 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 		}
 		conditions = append(conditions, fmt.Sprintf("t.status IN (%s)", strings.Join(placeholders, ",")))
 	}
-	
+
 	if filter.AmountMin != nil {
 		conditions = append(conditions, fmt.Sprintf("t.amount >= $%d", argCounter))
 		args = append(args, *filter.AmountMin)
 		argCounter++
 	}
-	
+
 	if filter.AmountMax != nil {
 		conditions = append(conditions, fmt.Sprintf("t.amount <= $%d", argCounter))
 		args = append(args, *filter.AmountMax)
 		argCounter++
 	}
-	
+
 	whereClause := strings.Join(conditions, " AND ")
-	
+
 	havingClause := ""
 	if filter.ProductCountMin != nil || filter.ProductCountMax != nil {
 		var havingConditions []string
-		
+
 		if filter.ProductCountMin != nil {
 			havingConditions = append(havingConditions, fmt.Sprintf("COUNT(tp.id) >= $%d", argCounter))
 			args = append(args, *filter.ProductCountMin)
 			argCounter++
 		}
-		
+
 		if filter.ProductCountMax != nil {
 			havingConditions = append(havingConditions, fmt.Sprintf("COUNT(tp.id) <= $%d", argCounter))
 			args = append(args, *filter.ProductCountMax)
 			argCounter++
 		}
-		
+
 		if len(havingConditions) > 0 {
 			havingClause = "HAVING " + strings.Join(havingConditions, " AND ")
 		}
 	}
-	
+
 	countQ := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM (
@@ -1044,15 +1046,15 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 			%s
 		) AS filtered_transactions
 	`, whereClause, havingClause)
-	
+
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count admin transactions: %w", err)
 	}
-	
+
 	offset := (filter.Page - 1) * filter.PageSize
 	args = append(args, filter.PageSize, offset)
-	
+
 	dataQ := fmt.Sprintf(`
 		SELECT 
 			t.id,
@@ -1077,20 +1079,20 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 		ORDER BY t.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, havingClause, argCounter, argCounter+1)
-	
+
 	rows, err := r.db.QueryContext(ctx, dataQ, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query admin transactions: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var transactions []*models.AdminTransactionListItem
 	for rows.Next() {
 		var tx models.AdminTransactionListItem
 		var responseCode, authCode sql.NullString
 		var originalTxID sql.NullInt64
 		var productIds []int64
-		
+
 		if err := rows.Scan(
 			&tx.ID,
 			&tx.UserID,
@@ -1108,7 +1110,7 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan admin transaction: %w", err)
 		}
-		
+
 		if responseCode.Valid {
 			tx.ResponseCode = &responseCode.String
 		}
@@ -1119,15 +1121,75 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 			id := originalTxID.Int64
 			tx.OriginalTransactionID = &id
 		}
-		
+
 		tx.ProductIds = productIds
 		transactions = append(transactions, &tx)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("iteration error: %w", err)
 	}
-	
+
 	return transactions, total, nil
 }
 
+func (r *transactionRepo) GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error) {
+	statsQ := `
+		WITH stats AS (
+			SELECT 
+				COUNT(*) as total_count,
+				COALESCE(SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END), 0) as total_revenue,
+				COALESCE(AVG(CASE WHEN status = 'APPROVED' THEN amount ELSE NULL END), 0) as avg_value
+			FROM transaction.transactions
+			WHERE type = 'SALE'
+		),
+		status_counts AS (
+			SELECT 
+				status,
+				COUNT(*) as count
+			FROM transaction.transactions
+			WHERE type = 'SALE'
+			GROUP BY status
+		)
+		SELECT 
+			s.total_count,
+			s.total_revenue,
+			s.avg_value,
+			COALESCE(json_agg(
+				json_build_object(
+					'status', sc.status,
+					'count', sc.count,
+					'percentage', ROUND((sc.count::numeric / s.total_count::numeric * 100), 2)
+				)
+			) FILTER (WHERE sc.status IS NOT NULL), '[]'::json) as status_breakdown
+		FROM stats s
+		LEFT JOIN status_counts sc ON true
+		GROUP BY s.total_count, s.total_revenue, s.avg_value
+	`
+
+	var stats models.TransactionStatistics
+	var statusBreakdownJSON []byte
+
+	err := r.db.QueryRowContext(ctx, statsQ).Scan(
+		&stats.TotalTransactions,
+		&stats.TotalRevenue,
+		&stats.AverageTransactionValue,
+		&statusBreakdownJSON,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction statistics: %w", err)
+	}
+
+	if len(statusBreakdownJSON) > 0 && string(statusBreakdownJSON) != "[]" {
+		var breakdown []models.StatusStatistic
+		if err := json.Unmarshal(statusBreakdownJSON, &breakdown); err != nil {
+			return nil, fmt.Errorf("failed to parse status breakdown: %w", err)
+		}
+		stats.StatusBreakdown = breakdown
+	} else {
+		stats.StatusBreakdown = []models.StatusStatistic{}
+	}
+
+	return &stats, nil
+}

@@ -36,6 +36,8 @@ func NewRouter(
 	protected.HandleFunc("/cards/{card_id}", cardHandler.DeleteCard).Methods("DELETE", "OPTIONS")
 	protected.HandleFunc("/cards/{card_id}/primary", cardHandler.SetPrimaryCard).Methods("PUT", "OPTIONS")
 
+	protected.HandleFunc("/statistics", transactionHandler.GetStatistics).Methods("GET")
+
 	protected.HandleFunc("/history", transactionHandler.GetFilteredTransactions).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/history/{transaction_id}", transactionHandler.GetTransactionDetail).Methods("GET", "OPTIONS")
 

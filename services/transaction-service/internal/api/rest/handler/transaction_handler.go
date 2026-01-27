@@ -207,7 +207,7 @@ func (h *TransactionHandler) GetFilteredTransactions(w http.ResponseWriter, r *h
 		models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
 		return
 	}
-	
+
 	var filter models.TransactionFilter
 	if err := json.NewDecoder(r.Body).Decode(&filter); err != nil {
 		models.Fail(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body", map[string]any{
@@ -215,23 +215,23 @@ func (h *TransactionHandler) GetFilteredTransactions(w http.ResponseWriter, r *h
 		})
 		return
 	}
-	
+
 	isAdmin := utils.Roles(claims.Roles).IsAdmin()
-	
+
 	var userID string
 	if isAdmin && filter.UserID != nil && *filter.UserID != "" {
 		userID = *filter.UserID
 	} else {
 		userID = claims.UserID
 	}
-	
+
 	res, err := h.svc.GetFilteredTransactions(r.Context(), userID, &filter, isAdmin)
 	if err != nil {
 		apiErr := models.MapError(err)
 		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
 		return
 	}
-	
+
 	models.Ok(w, http.StatusOK, res, nil)
 }
 
@@ -241,7 +241,7 @@ func (h *TransactionHandler) GetTransactionDetail(w http.ResponseWriter, r *http
 		models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
 		return
 	}
-	
+
 	vars := mux.Vars(r)
 	idStr := vars["transaction_id"]
 	txID, err := strconv.ParseInt(idStr, 10, 64)
@@ -249,15 +249,37 @@ func (h *TransactionHandler) GetTransactionDetail(w http.ResponseWriter, r *http
 		models.Fail(w, http.StatusBadRequest, "INVALID_TRANSACTION_ID", "invalid transaction id", nil)
 		return
 	}
-	
+
 	isAdmin := utils.Roles(claims.Roles).IsAdmin()
-	
+
 	detail, err := h.svc.GetTransactionDetails(r.Context(), claims.UserID, txID, isAdmin)
 	if err != nil {
 		apiErr := models.MapError(err)
 		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
 		return
 	}
-	
+
 	models.Ok(w, http.StatusOK, detail, nil)
+}
+
+func (h *TransactionHandler) GetStatistics(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserClaims(r.Context())
+	if claims == nil {
+		models.Fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "unauthorized", nil)
+		return
+	}
+
+	if !isAdmin(claims) {
+		models.Fail(w, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
+		return
+	}
+
+	stats, err := h.svc.GetTransactionStatistics(r.Context())
+	if err != nil {
+		apiErr := models.MapError(err)
+		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)
+		return
+	}
+
+	models.Ok(w, http.StatusOK, stats, nil)
 }
