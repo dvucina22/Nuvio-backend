@@ -62,20 +62,11 @@ func (s *UserService) UpdateUserPassword(ctx context.Context, userID string, pas
 		return models.ErrUserNotFound
 	}
 
-	if err := s.password_helper.ComparePassword(user.PasswordHash, password.OldPassword); err != nil {
+	if user.PasswordHash != password.OldPassword {
 		return models.ErrInvalidPassword
 	}
 
-	if err := s.password_helper.ValidatePassword(password.NewPassword); err != nil {
-		return models.ErrPasswordWeak
-	}
-
-	hashedPassword, err := s.password_helper.HashPassword(password.NewPassword)
-	if err != nil {
-		return err
-	}
-
-	return s.user_repo.UpdateUserPassword(userID, hashedPassword)
+	return s.user_repo.UpdateUserPassword(userID, password.NewPassword)
 }
 
 func (s *UserService) UpdateUserProfilePicture(userID string, profilePictureURL *string) error {
