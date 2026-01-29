@@ -431,6 +431,31 @@ func (r *transactionRepo) VoidTransaction(ctx context.Context, voidTx *models.Tr
 		return fmt.Errorf("failed to insert void transaction: %w", err)
 	}
 
+	updateQ := `
+		UPDATE transaction.transactions
+		SET
+			status = $1,
+			updated_at = NOW()
+		WHERE id = $2
+	`
+
+	res, err := dbTx.ExecContext(
+		ctx,
+		updateQ,
+		"VOIDED",
+		originalTxID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update original transaction status: %w", err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("original transaction not found: %d", originalTxID)
+	}
+
 	if err := dbTx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit void tx: %w", err)
 	}
