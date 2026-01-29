@@ -274,7 +274,14 @@ func (h *TransactionHandler) GetStatistics(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	stats, err := h.svc.GetTransactionStatistics(r.Context())
+	limit := 20
+	if limitStr := r.URL.Query().Get("transactions"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	stats, err := h.svc.GetTransactionStatistics(r.Context(), limit)
 	if err != nil {
 		apiErr := models.MapError(err)
 		models.Fail(w, apiErr.Status, apiErr.Code, apiErr.Message, nil)

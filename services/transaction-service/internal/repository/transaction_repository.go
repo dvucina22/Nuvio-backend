@@ -23,7 +23,7 @@ type TransactionRepository interface {
 	GetAdminTransactionDetail(ctx context.Context, txID int64) (*models.AdminTransactionDetail, error)
 	GetFilteredUserTransactions(ctx context.Context, filter *models.TransactionFilter) ([]*models.TransactionListItem, int64, error)
 	GetFilteredAdminTransactions(ctx context.Context, filter *models.AdminTransactionFilter) ([]*models.AdminTransactionListItem, int64, error)
-	GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error)
+	GetTransactionStatistics(ctx context.Context, limit int) (*models.TransactionStatistics, error)
 }
 
 type transactionRepo struct {
@@ -1133,7 +1133,11 @@ func (r *transactionRepo) GetFilteredAdminTransactions(ctx context.Context, filt
 	return transactions, total, nil
 }
 
-func (r *transactionRepo) GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error) {
+func (r *transactionRepo) GetTransactionStatistics(ctx context.Context, limit int) (*models.TransactionStatistics, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
 	statsQ := `
 		WITH stats AS (
 			SELECT 
@@ -1190,6 +1194,53 @@ func (r *transactionRepo) GetTransactionStatistics(ctx context.Context) (*models
 	} else {
 		stats.StatusBreakdown = []models.StatusStatistic{}
 	}
+
+	recentQ := `
+		SELECT 
+			id,
+			user_id,
+			type,
+			status,
+			amount,
+			currency_code,
+			created_at
+		FROM transaction.transactions
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, recentQ, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var recentTransactions []models.RecentTransaction
+	for rows.Next() {
+		var tx models.RecentTransaction
+		var userID uuid.UUID
+
+		if err := rows.Scan(
+			&tx.ID,
+			&userID,
+			&tx.Type,
+			&tx.Status,
+			&tx.Amount,
+			&tx.CurrencyCode,
+			&tx.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan recent transaction: %w", err)
+		}
+
+		tx.UserID = userID.String()
+		recentTransactions = append(recentTransactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iteration error: %w", err)
+	}
+
+	stats.RecentTransactions = recentTransactions
 
 	return &stats, nil
 }

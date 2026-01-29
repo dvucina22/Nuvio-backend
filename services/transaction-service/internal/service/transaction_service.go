@@ -442,8 +442,12 @@ func (s *TransactionService) GetTransactionDetails(ctx context.Context, userID s
 	return detail, nil
 }
 
-func (s *TransactionService) GetTransactionStatistics(ctx context.Context) (*models.TransactionStatistics, error) {
-	stats, err := s.repo.GetTransactionStatistics(ctx)
+func (s *TransactionService) GetTransactionStatistics(ctx context.Context, limit int) (*models.TransactionStatistics, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	stats, err := s.repo.GetTransactionStatistics(ctx, limit)
 	if err != nil {
 		return nil, models.ErrDatabaseOperation
 	}
