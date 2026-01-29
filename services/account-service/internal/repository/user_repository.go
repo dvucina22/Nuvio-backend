@@ -102,7 +102,7 @@ func (r *userRepo) UpdateUserInfo(userID string, user *models.UpdateUser) error 
         first_name = COALESCE($1, first_name), 
         last_name = COALESCE($2, last_name), 
         phone_number = COALESCE($3, phone_number) ,
-		gender = COALESCE($4, gen der),
+		gender = COALESCE($4, gender),
 		updated_at = NOW()
     WHERE id = $5`
 
