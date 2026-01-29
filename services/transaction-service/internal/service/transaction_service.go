@@ -163,7 +163,7 @@ func (s *TransactionService) VoidSale(ctx context.Context, req *models.VoidReque
 	if strings.ToUpper(orig.Type) != "SALE" {
 		return nil, models.ErrInvalidTransactionType
 	}
-	if strings.ToUpper(orig.Status) != "APPROVED" {
+	if strings.ToUpper(orig.Status) != "APPROVED" && strings.ToUpper(orig.Status) != "VOIDED" {
 		return nil, models.ErrInvalidTransactionState
 	}
 
