@@ -185,7 +185,7 @@ func (c *ComClient) AuthorizeVoid(ctx context.Context, orig *models.Transaction)
 	}
 
 	var out models.AuthorizeVoidRespDTO
-	if err := c.post(ctx, baseURL+"/api/bank-comm/authorize/void", in, &out); err != nil {
+	if err := c.post(ctx, baseURL+"/authorize/void", in, &out); err != nil {
 		return nil, err
 	}
 
