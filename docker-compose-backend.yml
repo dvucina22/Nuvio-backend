@@ -44,6 +44,68 @@ services:
       - nuvio-network
     restart: unless-stopped  
 
+  iso-com-manager:
+    build:
+      context: ./services/iso-com-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-iso-com-manager
+    env_file:
+      - ./services/iso-com-service/.env
+    environment:
+      TRANSACTION_PORT: 8004
+    expose:
+      - "8004"
+    networks:
+      - nuvio-network
+    restart: unless-stopped  
+
+  iso-host-manager:
+    build:
+      context: ./services/iso-host-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-iso-host-manager
+    env_file:
+      - ./services/iso-host-service/.env
+    environment:
+      TRANSACTION_PORT: 8005
+    expose:
+      - "8005"
+    networks:
+      - nuvio-network
+    restart: unless-stopped  
+
+  rest-com-manager:
+    build:
+      context: ./services/rest-com-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-rest-com-manager
+    env_file:
+      - ./services/rest-com-service/.env
+    environment:
+      REST_COM_PORT: 8006
+      REST_HOST_ADDR: rest-host-manager:8007
+    expose:
+      - "8006"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
+  rest-host-manager:
+    build:
+      context: ./services/rest-host-service
+      dockerfile: Dockerfile-service
+    container_name: nuvio-rest-host-manager
+    env_file:
+      - ./services/rest-host-service/.env
+    environment:
+      REST_HOST_PORT: 8007
+      REST_HOST_ADDR: 0.0.0.0:8007
+    expose:
+      - "8007"
+    networks:
+      - nuvio-network
+    restart: unless-stopped
+
   nginx:
     image: nginx:alpine
     container_name: nuvio-nginx
@@ -58,6 +120,8 @@ services:
       - account-manager
       - catalog-manager
       - transaction-manager
+      - iso-com-manager
+      - rest-com-manager
     networks:
       - nuvio-network
     restart: unless-stopped
